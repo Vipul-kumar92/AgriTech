@@ -152,3 +152,96 @@ async def get_feature_importance():
         "features": ranked_features,
         "academic_note": "Feature importance reflects Gini impurity reduction across decision trees. It quantifies statistical model dependence and predictive weight, but does NOT establish agronomic physiological causality."
     }
+
+# ==============================================================================
+# NEXT-LEVEL ADVANCED ENDPOINTS: Weather, Economics, Simulation, and Map
+# ==============================================================================
+
+from backend.app.services.weather_service import fetch_live_weather, STATE_COORDINATES
+from backend.app.services.simulation_service import calculate_farm_economics, run_what_if_simulation, MSP_RATES_INR_PER_QUINTAL
+from pydantic import BaseModel, Field
+
+class SimulationRequest(BaseModel):
+    crop: str = Field(default="Wheat")
+    state: str = Field(default="Punjab")
+    season: str = Field(default="Rabi")
+    area: float = Field(default=50.0, gt=0)
+    annual_rainfall: float = Field(default=700.0, ge=0)
+    fertilizer: float = Field(default=7000.0, ge=0)
+    pesticide: float = Field(default=150.0, ge=0)
+    crop_year: int = Field(default=2024)
+
+@router.get("/weather/live", response_model=Dict[str, Any])
+async def get_live_weather(state: str):
+    """Retrieve real-time Open-Meteo weather and precipitation benchmarks for a state."""
+    return fetch_live_weather(state)
+
+@router.get("/economics/msp", response_model=Dict[str, Any])
+async def get_crop_economics(
+    crop: str,
+    area: float,
+    predicted_yield: float,
+    fertilizer: float = 0.0,
+    pesticide: float = 0.0,
+    fertilizer_kg: float = 0.0,
+    pesticide_kg: float = 0.0
+):
+    """Calculate farm revenue based on Government MSP and chemical input costs."""
+    actual_fert = fertilizer_kg if fertilizer_kg > 0 else fertilizer
+    actual_pest = pesticide_kg if pesticide_kg > 0 else pesticide
+    return calculate_farm_economics(crop, area, predicted_yield, actual_fert, actual_pest)
+
+@router.post("/simulate", response_model=Dict[str, Any])
+async def simulate_what_if_scenarios(req: SimulationRequest):
+    """Execute real-time What-If scenario simulations across rainfall and fertilizer grids."""
+    return run_what_if_simulation(
+        crop=req.crop,
+        state=req.state,
+        season=req.season,
+        area_ha=req.area,
+        base_rainfall=req.annual_rainfall,
+        base_fertilizer_kg=req.fertilizer,
+        base_pesticide_kg=req.pesticide,
+        crop_year=req.crop_year
+    )
+
+@router.get("/map/states", response_model=List[Dict[str, Any]])
+async def get_map_states_data():
+    """Retrieve regional agricultural metrics and coordinates for India Map visualization."""
+    ds = get_cached_dataset_stats()
+    df = pd.read_csv(settings.PROCESSED_DATA_PATH)
+    
+    state_metrics = []
+    grouped = df.groupby('State')
+    
+    for state_name, group in grouped:
+        avg_y = round(float(group['Yield'].mean()), 2)
+        top_crop = group['Crop'].value_counts().index[0]
+        avg_rain = round(float(group['Annual_Rainfall'].mean()), 1)
+        geo = STATE_COORDINATES.get(state_name, {"lat": 20.5937, "lon": 78.9629})
+        
+        # Categorize productivity tier
+        if avg_y >= 6.0:
+            tier = "High Productivity Zone (>6 t/ha)"
+            color = "#059669"
+        elif avg_y >= 2.5:
+            tier = "Moderate Productivity Zone (2.5-6 t/ha)"
+            color = "#0284c7"
+        else:
+            tier = "Rainfed / Lower Biomass Zone (<2.5 t/ha)"
+            color = "#d97706"
+            
+        state_metrics.append({
+            "state": state_name,
+            "average_yield": avg_y,
+            "top_crop": top_crop,
+            "average_rainfall_mm": avg_rain,
+            "records_count": len(group),
+            "tier": tier,
+            "color": color,
+            "latitude": geo["lat"],
+            "longitude": geo["lon"]
+        })
+        
+    return sorted(state_metrics, key=lambda x: x["average_yield"], reverse=True)
+

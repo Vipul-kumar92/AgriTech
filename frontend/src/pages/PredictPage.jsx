@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import api from '../services/api';
 import { LoadingSpinner } from '../components/common/StatCard';
 import {
@@ -12,11 +12,18 @@ import {
   Layers,
   ArrowRight,
   AlertCircle,
-  HelpCircle
+  HelpCircle,
+  CloudSun,
+  Thermometer,
+  Droplets,
+  Sparkles,
+  RefreshCw,
+  Compass
 } from 'lucide-react';
 
 const PredictPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [categories, setCategories] = useState({
     crops: [],
     states: [],
@@ -24,11 +31,16 @@ const PredictPage = () => {
   });
   const [loadingMetadata, setLoadingMetadata] = useState(true);
 
+  // Live weather detection state
+  const [liveWeather, setLiveWeather] = useState(null);
+  const [loadingWeather, setLoadingWeather] = useState(false);
+  const [weatherNotice, setWeatherNotice] = useState('');
+
   // Form State
   const [formData, setFormData] = useState({
-    crop: 'Rice',
+    crop: location.state?.presetCrop || 'Rice',
     season: 'Kharif',
-    state: 'Punjab',
+    state: location.state?.presetState || 'Punjab',
     area: 50.0,
     annual_rainfall: 1100.0,
     fertilizer: 7500.0,
@@ -39,24 +51,61 @@ const PredictPage = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  // Fetch live meteorological parameters for a state
+  const fetchLiveWeather = async (targetState) => {
+    const stateName = targetState || formData.state;
+    if (!stateName) return;
+
+    setLoadingWeather(true);
+    setWeatherNotice('');
+    try {
+      const res = await api.get('/weather/live', { params: { state: stateName } });
+      setLiveWeather(res.data);
+      if (res.data.annual_rainfall_benchmark_mm) {
+        setFormData((prev) => ({
+          ...prev,
+          annual_rainfall: res.data.annual_rainfall_benchmark_mm
+        }));
+        setWeatherNotice(
+          `Auto-applied meteorological annual precipitation (${res.data.annual_rainfall_benchmark_mm} mm) for ${res.data.state}.`
+        );
+      }
+    } catch (err) {
+      console.warn('Weather service unreachable:', err);
+    } finally {
+      setLoadingWeather(false);
+    }
+  };
+
   // Fetch unique categories directly from backend dataset stats
   useEffect(() => {
     const fetchMetadata = async () => {
       try {
         const res = await api.get('/dataset/stats');
-        setCategories({
-          crops: res.data.crops || [],
-          states: res.data.states || [],
-          seasons: res.data.seasons || []
-        });
-        if (res.data.crops?.length > 0) {
-          setFormData((prev) => ({
-            ...prev,
-            crop: res.data.crops.includes('Rice') ? 'Rice' : res.data.crops[0],
-            state: res.data.states.includes('Punjab') ? 'Punjab' : res.data.states[0],
-            season: res.data.seasons.includes('Kharif') ? 'Kharif' : res.data.seasons[0]
-          }));
-        }
+        const crops = res.data.crops || [];
+        const states = res.data.states || [];
+        const seasons = res.data.seasons || [];
+
+        setCategories({ crops, states, seasons });
+
+        // Prepopulate based on location state (e.g. from /map) or defaults
+        const defaultCrop = location.state?.presetCrop && crops.includes(location.state.presetCrop)
+          ? location.state.presetCrop
+          : crops.includes('Rice') ? 'Rice' : crops[0] || 'Rice';
+
+        const defaultState = location.state?.presetState && states.includes(location.state.presetState)
+          ? location.state.presetState
+          : states.includes('Punjab') ? 'Punjab' : states[0] || 'Punjab';
+
+        setFormData((prev) => ({
+          ...prev,
+          crop: defaultCrop,
+          state: defaultState,
+          season: seasons.includes('Kharif') ? 'Kharif' : seasons[0] || 'Kharif'
+        }));
+
+        // Automatically fetch live climate for initial state
+        fetchLiveWeather(defaultState);
       } catch (err) {
         console.error('Failed to load dataset categories:', err);
       } finally {
@@ -64,7 +113,7 @@ const PredictPage = () => {
       }
     };
     fetchMetadata();
-  }, []);
+  }, [location.state]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -146,7 +195,7 @@ const PredictPage = () => {
                 name="crop"
                 value={formData.crop}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white font-medium text-slate-800"
               >
                 {categories.crops.map((c) => (
                   <option key={c} value={c}>
@@ -158,14 +207,29 @@ const PredictPage = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                State / Region
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
+                  State / Region
+                </label>
+                <button
+                  type="button"
+                  onClick={() => fetchLiveWeather(formData.state)}
+                  disabled={loadingWeather}
+                  className="text-[11px] text-emerald-600 hover:text-emerald-700 font-bold flex items-center space-x-1"
+                  title="Query Open-Meteo for real-time climate"
+                >
+                  <RefreshCw className={`w-3 h-3 ${loadingWeather ? 'animate-spin' : ''}`} />
+                  <span>{loadingWeather ? 'Syncing...' : 'Sync Weather'}</span>
+                </button>
+              </div>
               <select
                 name="state"
                 value={formData.state}
-                onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+                onChange={(e) => {
+                  handleChange(e);
+                  fetchLiveWeather(e.target.value);
+                }}
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white font-medium text-slate-800"
               >
                 {categories.states.map((s) => (
                   <option key={s} value={s}>
@@ -184,7 +248,7 @@ const PredictPage = () => {
                 name="season"
                 value={formData.season}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
+                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white font-medium text-slate-800"
               >
                 {categories.seasons.map((sn) => (
                   <option key={sn} value={sn}>
@@ -195,6 +259,62 @@ const PredictPage = () => {
               <p className="text-[11px] text-slate-400 mt-1">Kharif, Rabi, Whole Year, etc.</p>
             </div>
           </div>
+
+          {/* Live Open-Meteo Meteorological Badge */}
+          {liveWeather && (
+            <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-emerald-200/80 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center space-x-3">
+                <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-sm">
+                  <CloudSun className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      Live Meteorological Snapshot ({liveWeather.state})
+                    </span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1 animate-ping" />
+                      {liveWeather.is_live ? 'Open-Meteo Live' : 'IMD Climate'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 mt-0.5">
+                    {liveWeather.weather_description} • Recorded via Open-Meteo Geospatial Coordinates
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-4 text-xs font-medium text-slate-700">
+                <div className="flex items-center space-x-1">
+                  <Thermometer className="w-4 h-4 text-amber-500" />
+                  <span className="font-bold">{liveWeather.temperature_c}°C</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <Droplets className="w-4 h-4 text-blue-500" />
+                  <span>Humidity: <strong className="text-slate-900">{liveWeather.relative_humidity_pct}%</strong></span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <CloudRain className="w-4 h-4 text-teal-600" />
+                  <span>IMD Benchmark: <strong className="text-slate-900">{liveWeather.annual_rainfall_benchmark_mm} mm</strong></span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {weatherNotice && (
+            <div className="text-xs text-emerald-700 bg-emerald-50/80 px-3.5 py-2 rounded-lg border border-emerald-200 flex items-center justify-between">
+              <span className="flex items-center">
+                <Sparkles className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
+                {weatherNotice}
+              </span>
+              <button
+                type="button"
+                onClick={() => setWeatherNotice('')}
+                className="text-emerald-500 hover:text-emerald-700 font-bold ml-2 text-xs"
+              >
+                ✕
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Section 2: Cultivated Land & Weather */}
@@ -240,7 +360,20 @@ const PredictPage = () => {
                 onChange={handleChange}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
               />
-              <p className="text-[11px] text-slate-400 mt-1">India national average: 600mm – 2200mm</p>
+              <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
+                <span>India historical avg: 600mm – 2200mm</span>
+                {liveWeather && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData((p) => ({ ...p, annual_rainfall: liveWeather.annual_rainfall_benchmark_mm }))
+                    }
+                    className="text-emerald-600 font-bold hover:underline"
+                  >
+                    Reset to {liveWeather.annual_rainfall_benchmark_mm} mm
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

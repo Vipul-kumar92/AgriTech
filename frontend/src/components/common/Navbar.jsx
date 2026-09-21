@@ -50,9 +50,11 @@ const Navbar = ({ onToggleSidebar }) => {
         {!isAuthenticated && (
           <nav className="hidden md:flex items-center space-x-6 text-sm font-medium text-slate-600">
             <Link to="/" className="hover:text-emerald-600 transition-colors">Home</Link>
-            <Link to="/about" className="hover:text-emerald-600 transition-colors">Methodology & Viva</Link>
+            <Link to="/map" className="hover:text-emerald-600 transition-colors font-semibold text-emerald-700">Yield Map</Link>
+            <Link to="/simulator" className="hover:text-emerald-600 transition-colors font-semibold text-teal-700">What-If Lab</Link>
+            <Link to="/about" className="hover:text-emerald-600 transition-colors">Viva & Methodology</Link>
             <Link to="/dataset-insights" className="hover:text-emerald-600 transition-colors">Dataset</Link>
-            <Link to="/model-performance" className="hover:text-emerald-600 transition-colors">Model Benchmarks</Link>
+            <Link to="/model-performance" className="hover:text-emerald-600 transition-colors">Benchmarks</Link>
           </nav>
         )}
 

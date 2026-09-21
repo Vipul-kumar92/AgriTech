@@ -23,6 +23,8 @@ import AdminDashboardPage from './pages/AdminDashboardPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminPredictionsPage from './pages/AdminPredictionsPage';
 import AboutPage from './pages/AboutPage';
+import AgriMapPage from './pages/AgriMapPage';
+import SensitivitySimulatorPage from './pages/SensitivitySimulatorPage';
 
 // Protected Route Guard
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
@@ -76,6 +78,8 @@ const AppLayout = () => {
               <Route path="/model-performance" element={<ModelPerformancePage />} />
               <Route path="/feature-importance" element={<FeatureImportancePage />} />
               <Route path="/analytics" element={<AnalyticsPage />} />
+              <Route path="/map" element={<AgriMapPage />} />
+              <Route path="/simulator" element={<SensitivitySimulatorPage />} />
               <Route path="/predict" element={<PredictPage />} />
               <Route path="/predict/result/:id" element={<PredictionResultPage />} />
 

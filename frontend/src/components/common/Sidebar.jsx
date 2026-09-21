@@ -14,6 +14,8 @@ import {
   ShieldCheck,
   Users,
   FileSpreadsheet,
+  Map,
+  SlidersHorizontal,
   X
 } from 'lucide-react';
 
@@ -64,6 +66,14 @@ const Sidebar = ({ isOpen, onClose }) => {
             <NavLink to="/predict" onClick={onClose} className={navItemClass}>
               <Sprout className="w-4 h-4 flex-shrink-0" />
               <span>Predict Yield</span>
+            </NavLink>
+            <NavLink to="/map" onClick={onClose} className={navItemClass}>
+              <Map className="w-4 h-4 flex-shrink-0" />
+              <span>Agri Yield Map</span>
+            </NavLink>
+            <NavLink to="/simulator" onClick={onClose} className={navItemClass}>
+              <SlidersHorizontal className="w-4 h-4 flex-shrink-0" />
+              <span>What-If Simulator</span>
             </NavLink>
             <NavLink to="/history" onClick={onClose} className={navItemClass}>
               <History className="w-4 h-4 flex-shrink-0" />

@@ -141,3 +141,49 @@ def test_models_benchmark_and_feature_importance():
         assert res_feat.status_code == 200
         feat_data = res_feat.json()
         assert len(feat_data["features"]) > 0
+
+def test_next_level_services():
+    """Verify live weather, MSP economics, What-If simulator, and geographic yield map endpoints."""
+    with TestClient(app) as tc:
+        # 1. Weather
+        res_w = tc.get("/api/weather/live?state=Punjab")
+        assert res_w.status_code == 200
+        data_w = res_w.json()
+        assert data_w["state"] == "Punjab"
+        assert "temperature_c" in data_w or "temperature_celsius" in data_w
+
+        # 2. MSP Economics
+        res_e = tc.get("/api/economics/msp?crop=Rice&predicted_yield=4.2&area=50&fertilizer_kg=7500&pesticide_kg=175")
+        assert res_e.status_code == 200
+        data_e = res_e.json()
+        assert data_e["crop"] == "Rice"
+        assert data_e["gross_revenue_lakhs"] > 0
+        assert data_e["total_chemical_cost_inr"] > 0
+        assert "pricing_source" in data_e
+
+        # 3. Geospatial Map States
+        res_m = tc.get("/api/map/states")
+        assert res_m.status_code == 200
+        data_m = res_m.json()
+        assert len(data_m) == 30
+        assert "state" in data_m[0]
+        assert "tier" in data_m[0]
+
+        # 4. What-If Simulator
+        sim_payload = {
+            "crop": "Rice",
+            "state": "Punjab",
+            "season": "Kharif",
+            "area": 50.0,
+            "annual_rainfall": 1100.0,
+            "fertilizer": 7500.0,
+            "pesticide": 175.0,
+            "crop_year": 2024
+        }
+        res_s = tc.post("/api/simulate", json=sim_payload)
+        assert res_s.status_code == 200
+        data_s = res_s.json()
+        assert data_s["base_yield_t_ha"] > 0
+        assert len(data_s["rainfall_sensitivity_curve"]) == 9
+        assert len(data_s["fertilizer_sensitivity_curve"]) == 9
+

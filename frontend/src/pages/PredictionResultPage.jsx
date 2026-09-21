@@ -15,7 +15,16 @@ import {
   MessageSquare,
   ArrowRight,
   ShieldCheck,
-  Send
+  Send,
+  Volume2,
+  VolumeX,
+  Printer,
+  IndianRupee,
+  BadgePercent,
+  Receipt,
+  FileCheck2,
+  Sparkles,
+  Share2
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from 'recharts';
 
@@ -28,6 +37,14 @@ const PredictionResultPage = () => {
   const [comment, setComment] = useState('');
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+
+  // Economic MSP state
+  const [economics, setEconomics] = useState(null);
+  const [loadingEconomics, setLoadingEconomics] = useState(false);
+
+  // Voice advisory state
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [activeSpeechLang, setActiveSpeechLang] = useState(null);
 
   useEffect(() => {
     if (!prediction && id) {
@@ -44,6 +61,111 @@ const PredictionResultPage = () => {
       fetchPrediction();
     }
   }, [id, prediction]);
+
+  // Once prediction is loaded, fetch government MSP economic returns
+  useEffect(() => {
+    if (prediction) {
+      const fetchMSP = async () => {
+        setLoadingEconomics(true);
+        try {
+          const inputs = prediction.input_summary || prediction.input_features || {};
+          const crop = inputs.crop || 'Rice';
+          const yieldVal = prediction.predicted_yield || 3.5;
+          const area = inputs.area_hectares || inputs.area || 1.0;
+          const fertilizer = inputs.fertilizer_kg || inputs.fertilizer || 100.0;
+          const pesticide = inputs.pesticide_kg || inputs.pesticide || 5.0;
+
+          const res = await api.get('/economics/msp', {
+            params: {
+              crop,
+              predicted_yield: yieldVal,
+              area,
+              fertilizer_kg: fertilizer,
+              pesticide_kg: pesticide
+            }
+          });
+          setEconomics(res.data);
+        } catch (err) {
+          console.warn('Economics API failed:', err);
+        } finally {
+          setLoadingEconomics(false);
+        }
+      };
+      fetchMSP();
+    }
+  }, [prediction]);
+
+  // Clean up speech synthesis on unmount
+  useEffect(() => {
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  const handleVoiceAdvisory = (lang = 'en') => {
+    if (!('speechSynthesis' in window)) {
+      alert('Text-to-speech is not supported in this browser.');
+      return;
+    }
+
+    if (isSpeaking && activeSpeechLang === lang) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      setActiveSpeechLang(null);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const inputs = prediction.input_summary || prediction.input_features || {};
+    let speechText = '';
+
+    if (lang === 'hi') {
+      speechText = `कृषि उपज परामर्श। राज्य ${inputs.state} के लिए फसल ${inputs.crop} की अनुमानित उपज ${prediction.predicted_yield} टन प्रति हेक्टेयर है। ${inputs.area_hectares || inputs.area} हेक्टेयर खेत में कुल अनुमानित उत्पादन ${prediction.predicted_total_production} मीट्रिक टन होगा। ${
+        economics
+          ? `सरकारी न्यूनतम समर्थन मूल्य ${economics.msp_per_quintal_inr} रुपये प्रति क्विंटल के आधार पर अनुमानित सकल आमदनी ${economics.gross_revenue_lakhs} लाख रुपये, तथा शुद्ध लाभ लगभग ${Math.round(
+              economics.net_farm_return_inr
+            ).toLocaleString('hi-IN')} रुपये आंका गया है।`
+          : ''
+      } वैज्ञानिक कृषि सलाह: संतुलित उर्वरक प्रयोग करें। धन्यवाद।`;
+    } else {
+      speechText = `Agricultural Advisory Briefing. For ${inputs.crop} cultivation in ${inputs.state}, the trained machine learning pipeline predicts an empirical yield of ${prediction.predicted_yield} tonnes per hectare. Over ${inputs.area_hectares || inputs.area} hectares, the estimated total harvest is ${prediction.predicted_total_production} metric tonnes. ${
+        economics
+          ? `At the Government MSP benchmark of rupees ${economics.msp_per_quintal_inr} per quintal, gross revenue is estimated at rupees ${economics.gross_revenue_lakhs} lakhs, with an estimated net return of rupees ${Math.round(
+              economics.net_farm_return_inr
+            ).toLocaleString('en-IN')}.`
+          : ''
+      } Recommended action: optimize chemical application according to soil testing.`;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(speechText);
+    utterance.lang = lang === 'hi' ? 'hi-IN' : 'en-IN';
+    utterance.rate = 0.95;
+    utterance.pitch = 1.0;
+
+    utterance.onstart = () => {
+      setIsSpeaking(true);
+      setActiveSpeechLang(lang);
+    };
+
+    utterance.onend = () => {
+      setIsSpeaking(false);
+      setActiveSpeechLang(null);
+    };
+
+    utterance.onerror = () => {
+      setIsSpeaking(false);
+      setActiveSpeechLang(null);
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
 
   const handleFeedbackSubmit = async (e) => {
     e.preventDefault();
@@ -86,64 +208,122 @@ const PredictionResultPage = () => {
     : [];
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-16">
+    <div className="max-w-4xl mx-auto space-y-8 pb-16 print:p-0 print:m-0 print:max-w-none">
+      {/* Action Bar: Voice advisory and Print */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm print:hidden">
+        <div className="flex items-center space-x-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            Smart Audio Advisory:
+          </span>
+          <button
+            onClick={() => handleVoiceAdvisory('en')}
+            className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+              isSpeaking && activeSpeechLang === 'en'
+                ? 'bg-red-500 text-white animate-pulse'
+                : 'bg-emerald-100 hover:bg-emerald-200 text-emerald-800'
+            }`}
+          >
+            {isSpeaking && activeSpeechLang === 'en' ? (
+              <VolumeX className="w-3.5 h-3.5" />
+            ) : (
+              <Volume2 className="w-3.5 h-3.5" />
+            )}
+            <span>{isSpeaking && activeSpeechLang === 'en' ? 'Stop Audio' : 'Listen in English'}</span>
+          </button>
+          <button
+            onClick={() => handleVoiceAdvisory('hi')}
+            className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+              isSpeaking && activeSpeechLang === 'hi'
+                ? 'bg-red-500 text-white animate-pulse'
+                : 'bg-amber-100 hover:bg-amber-200 text-amber-900'
+            }`}
+          >
+            {isSpeaking && activeSpeechLang === 'hi' ? (
+              <VolumeX className="w-3.5 h-3.5" />
+            ) : (
+              <Volume2 className="w-3.5 h-3.5" />
+            )}
+            <span>{isSpeaking && activeSpeechLang === 'hi' ? 'रोकें (Stop)' : 'हिंदी में सुनें (Hindi)'}</span>
+          </button>
+        </div>
+
+        <button
+          onClick={handlePrint}
+          className="inline-flex items-center space-x-1.5 px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+        >
+          <Printer className="w-4 h-4 text-slate-600" />
+          <span>Print Official Advisory Certificate</span>
+        </button>
+      </div>
+
+      {/* Official Certificate Header (Visible in Print Only) */}
+      <div className="hidden print:block text-center border-b-2 border-emerald-800 pb-6 mb-6">
+        <h1 className="text-2xl font-black text-slate-900 tracking-tight">AGRIYIELD.AI — NATIONAL CROP ADVISORY CERTIFICATE</h1>
+        <p className="text-xs text-slate-600 mt-1">Empirical Machine Learning Agro-Ecological Yield & Economic Assessment</p>
+        <div className="flex justify-between items-center text-[10px] text-slate-500 mt-4 border-t border-slate-200 pt-2">
+          <span>Certificate Ref ID: #{prediction.prediction_id}</span>
+          <span>Target Region: {inputs.state} | Crop: {inputs.crop}</span>
+          <span>Date Issued: {new Date().toLocaleDateString('en-IN', { dateStyle: 'long' })}</span>
+        </div>
+      </div>
+
       {/* High-Visibility Yield Result Card */}
-      <div className="bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-800 rounded-3xl p-8 sm:p-10 text-white shadow-xl shadow-emerald-900/20 relative overflow-hidden">
-        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-60 h-60 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-800 rounded-3xl p-8 sm:p-10 text-white shadow-xl shadow-emerald-900/20 relative overflow-hidden print:bg-none print:text-slate-900 print:border print:border-emerald-700 print:p-6">
+        <div className="absolute top-0 right-0 -mt-10 -mr-10 w-60 h-60 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none print:hidden" />
 
         <div className="relative z-10 space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-emerald-600/60">
+          <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-emerald-600/60 print:border-slate-300">
             <div className="flex items-center space-x-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-200">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping print:hidden" />
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-200 print:text-emerald-800">
                 Validated ML Forecast
               </span>
             </div>
-            <span className="text-xs text-emerald-200">
-              Model: <span className="font-semibold text-white">{prediction.model_name || 'Random Forest Regressor'}</span> ({prediction.model_version || 'v1.0'})
+            <span className="text-xs text-emerald-200 print:text-slate-600">
+              Model: <span className="font-semibold text-white print:text-slate-900">{prediction.model_name || 'Random Forest Regressor'}</span> ({prediction.model_version || 'v1.0'})
             </span>
           </div>
 
           <div className="grid sm:grid-cols-2 gap-6 items-center">
             <div>
-              <p className="text-emerald-200 text-sm font-semibold uppercase tracking-wider">
+              <p className="text-emerald-200 print:text-slate-600 text-sm font-semibold uppercase tracking-wider">
                 Predicted Crop Yield
               </p>
               <div className="flex items-baseline space-x-2 mt-2">
-                <span className="text-5xl sm:text-6xl font-black tracking-tight text-white">
+                <span className="text-5xl sm:text-6xl font-black tracking-tight text-white print:text-emerald-800">
                   {prediction.predicted_yield}
                 </span>
-                <span className="text-lg sm:text-xl font-bold text-emerald-200">
+                <span className="text-lg sm:text-xl font-bold text-emerald-200 print:text-slate-600">
                   {prediction.unit || 'tonnes/hectare'}
                 </span>
               </div>
-              <p className="text-xs text-emerald-300 mt-2 flex items-center">
-                <CheckCircle className="w-4 h-4 mr-1 text-emerald-400" />
-                Unit consistently maintained in metric tonnes per hectare
+              <p className="text-xs text-emerald-300 print:text-slate-500 mt-2 flex items-center">
+                <CheckCircle className="w-4 h-4 mr-1 text-emerald-400 print:text-emerald-700" />
+                Unit rigorously verified in metric tonnes per hectare
               </p>
             </div>
 
             {/* Total Estimated Production */}
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/10 space-y-3">
+            <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/10 space-y-3 print:bg-slate-50 print:border-slate-200">
               <div>
-                <p className="text-xs font-semibold text-emerald-200 uppercase tracking-wider">
+                <p className="text-xs font-semibold text-emerald-200 print:text-slate-600 uppercase tracking-wider">
                   Estimated Total Harvest Production
                 </p>
-                <p className="text-2xl sm:text-3xl font-extrabold text-white mt-1">
+                <p className="text-2xl sm:text-3xl font-extrabold text-white print:text-slate-900 mt-1">
                   {prediction.predicted_total_production}{' '}
-                  <span className="text-sm font-normal text-emerald-200">Metric Tonnes</span>
+                  <span className="text-sm font-normal text-emerald-200 print:text-slate-600">Metric Tonnes</span>
                 </p>
-                <p className="text-[11px] text-emerald-300">
+                <p className="text-[11px] text-emerald-300 print:text-slate-500">
                   Calculated as: {prediction.predicted_yield} t/ha × {inputs.area_hectares || inputs.area} hectares
                 </p>
               </div>
 
               {prediction.prediction_interval && (
-                <div className="pt-2 border-t border-white/10">
-                  <p className="text-xs text-emerald-200 font-medium">
+                <div className="pt-2 border-t border-white/10 print:border-slate-200">
+                  <p className="text-xs text-emerald-200 print:text-slate-600 font-medium">
                     Estimated 80% Empirical Interval:
                   </p>
-                  <p className="text-sm font-bold text-white">
+                  <p className="text-sm font-bold text-white print:text-emerald-800">
                     {prediction.prediction_interval.lower} – {prediction.prediction_interval.upper} tonnes/ha
                   </p>
                 </div>
@@ -152,6 +332,74 @@ const PredictionResultPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Next-Level Module: Government MSP Economic Revenue & Return Calculator */}
+      {economics && (
+        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+          <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-100 gap-2">
+            <div className="flex items-center space-x-2">
+              <IndianRupee className="w-5 h-5 text-emerald-600" />
+              <h3 className="text-base font-bold text-slate-900">
+                Government MSP Farm Revenue & Economic Return Analysis
+              </h3>
+            </div>
+            <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+              {economics.pricing_source}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200">
+              <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider block">
+                Official MSP Rate
+              </span>
+              <p className="text-xl font-extrabold text-emerald-950 mt-1">
+                ₹{economics.msp_per_quintal_inr.toLocaleString('en-IN')}
+                <span className="text-xs font-medium text-emerald-700"> / quintal</span>
+              </p>
+              <span className="text-[10px] text-emerald-600 mt-1 block">1 Quintal = 100 kg</span>
+            </div>
+
+            <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200">
+              <span className="text-[11px] font-semibold text-blue-700 uppercase tracking-wider block">
+                Estimated Gross Revenue
+              </span>
+              <p className="text-xl font-extrabold text-blue-950 mt-1">
+                ₹{economics.gross_revenue_lakhs} <span className="text-xs font-medium text-blue-700">Lakhs</span>
+              </p>
+              <span className="text-[10px] text-blue-600 mt-1 block">
+                ₹{Math.round(economics.gross_revenue_inr).toLocaleString('en-IN')} Total
+              </span>
+            </div>
+
+            <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200">
+              <span className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider block">
+                Input Chemical Costs
+              </span>
+              <p className="text-xl font-extrabold text-amber-950 mt-1">
+                ₹{Math.round(economics.total_chemical_cost_inr).toLocaleString('en-IN')}
+              </p>
+              <span className="text-[10px] text-amber-600 mt-1 block">Fertilizers & Pesticides</span>
+            </div>
+
+            <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-sm">
+              <span className="text-[11px] font-semibold text-emerald-200 uppercase tracking-wider block">
+                Estimated Net Farm Surplus
+              </span>
+              <p className="text-xl font-extrabold text-white mt-1">
+                ₹{Math.round(economics.net_farm_return_inr).toLocaleString('en-IN')}
+              </p>
+              <span className="text-[10px] text-emerald-200 mt-1 block font-bold">
+                Margin: {economics.profit_margin_pct}%
+              </span>
+            </div>
+          </div>
+
+          <p className="text-[11px] text-slate-500 italic">
+            * Economic calculation based on Government of India 2024–25 Minimum Support Prices (MSP) and CACP standard fertilizer/pesticide cost indices. Field labour, electricity, and transport overheads vary regionally.
+          </p>
+        </div>
+      )}
 
       {/* Input Parameters Summary */}
       <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
@@ -204,7 +452,7 @@ const PredictionResultPage = () => {
 
       {/* Model Feature Influence Chart */}
       {influenceData.length > 0 && (
-        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-4">
+        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-4 print:hidden">
           <div>
             <h3 className="text-lg font-bold text-slate-900">Model Feature Influence</h3>
             <p className="text-xs text-slate-500">
@@ -233,7 +481,7 @@ const PredictionResultPage = () => {
       )}
 
       {/* Farmer Feedback Submission */}
-      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-4">
+      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-4 print:hidden">
         <h3 className="text-lg font-bold text-slate-900">Farmer & Field Evaluation Feedback</h3>
         <p className="text-xs text-slate-500">
           How closely does this prediction reflect typical yields in your region?
@@ -294,20 +542,29 @@ const PredictionResultPage = () => {
         )}
       </div>
 
-      {/* Navigation Buttons */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
+      {/* Navigation & Next-level simulator launcher */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 print:hidden">
         <Link
           to="/predict"
           className="w-full sm:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-sm transition-colors text-center"
         >
           ← Run Another Prediction
         </Link>
-        <Link
-          to="/history"
-          className="w-full sm:w-auto px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm rounded-xl transition-colors text-center"
-        >
-          View Full Prediction History →
-        </Link>
+        <div className="flex flex-wrap gap-3 w-full sm:w-auto">
+          <Link
+            to="/simulator"
+            className="flex-1 sm:flex-initial px-5 py-3 bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold text-sm rounded-xl border border-teal-200 transition-colors text-center flex items-center justify-center space-x-1"
+          >
+            <Sparkles className="w-4 h-4 mr-1 text-teal-600" />
+            <span>Simulate Climate Shocks</span>
+          </Link>
+          <Link
+            to="/history"
+            className="flex-1 sm:flex-initial px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm rounded-xl transition-colors text-center"
+          >
+            View History →
+          </Link>
+        </div>
       </div>
     </div>
   );
