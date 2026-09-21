@@ -1,0 +1,195 @@
+{
+  "model_name": "Random Forest Regressor (Optimized)",
+  "version": "v1.0",
+  "filename": "crop_yield_model_v1.0.joblib",
+  "dataset_name": "Indian Agricultural Crop Yield & Climate Dataset (1997-2020)",
+  "dataset_version": "v1.0",
+  "training_records": 15525,
+  "test_records": 3882,
+  "trained_at": "2026-09-21T15:27:09.418322",
+  "target_variable": "Yield",
+  "target_unit": "tonnes/hectare",
+  "input_features": {
+    "categorical": [
+      "Crop",
+      "Season",
+      "State"
+    ],
+    "numerical": [
+      "Area",
+      "Annual_Rainfall",
+      "Fertilizer_per_Ha",
+      "Pesticide_per_Ha",
+      "Crop_Year"
+    ],
+    "all": [
+      "Crop",
+      "Season",
+      "State",
+      "Area",
+      "Annual_Rainfall",
+      "Fertilizer_per_Ha",
+      "Pesticide_per_Ha",
+      "Crop_Year"
+    ]
+  },
+  "metrics": {
+    "mae": 0.8219,
+    "mse": 23.0492,
+    "rmse": 4.801,
+    "r2": 0.8147,
+    "mape": 33.76
+  },
+  "cross_validation": {
+    "cv_folds": 5,
+    "metric": "R2",
+    "mean": 0.9044,
+    "std": 0.0334
+  },
+  "best_hyperparameters": {
+    "n_estimators": 200,
+    "min_samples_split": 2,
+    "min_samples_leaf": 1,
+    "max_depth": null
+  },
+  "feature_importance_percent": {
+    "Crop": 66.77,
+    "State": 14.83,
+    "Area": 8.84,
+    "Annual_Rainfall": 4.1,
+    "Pesticide_per_Ha": 1.61,
+    "Crop_Year": 1.58,
+    "Fertilizer_per_Ha": 1.25,
+    "Season": 1.0
+  },
+  "unique_categories": {
+    "crops": [
+      "Arecanut",
+      "Arhar/Tur",
+      "Bajra",
+      "Banana",
+      "Barley",
+      "Black pepper",
+      "Cardamom",
+      "Cashewnut",
+      "Castor seed",
+      "Coriander",
+      "Cotton(lint)",
+      "Cowpea(Lobia)",
+      "Dry chillies",
+      "Garlic",
+      "Ginger",
+      "Gram",
+      "Groundnut",
+      "Guar seed",
+      "Horse-gram",
+      "Jowar",
+      "Jute",
+      "Khesari",
+      "Linseed",
+      "Maize",
+      "Masoor",
+      "Mesta",
+      "Moong(Green Gram)",
+      "Moth",
+      "Niger seed",
+      "Oilseeds total",
+      "Onion",
+      "Other  Rabi pulses",
+      "Other Cereals",
+      "Other Kharif pulses",
+      "Other Summer Pulses",
+      "Peas & beans (Pulses)",
+      "Potato",
+      "Ragi",
+      "Rapeseed &Mustard",
+      "Rice",
+      "Safflower",
+      "Sannhamp",
+      "Sesamum",
+      "Small millets",
+      "Soyabean",
+      "Sugarcane",
+      "Sunflower",
+      "Sweet potato",
+      "Tapioca",
+      "Tobacco",
+      "Turmeric",
+      "Urad",
+      "Wheat",
+      "other oilseeds"
+    ],
+    "states": [
+      "Andhra Pradesh",
+      "Arunachal Pradesh",
+      "Assam",
+      "Bihar",
+      "Chhattisgarh",
+      "Delhi",
+      "Goa",
+      "Gujarat",
+      "Haryana",
+      "Himachal Pradesh",
+      "Jammu and Kashmir",
+      "Jharkhand",
+      "Karnataka",
+      "Kerala",
+      "Madhya Pradesh",
+      "Maharashtra",
+      "Manipur",
+      "Meghalaya",
+      "Mizoram",
+      "Nagaland",
+      "Odisha",
+      "Puducherry",
+      "Punjab",
+      "Sikkim",
+      "Tamil Nadu",
+      "Telangana",
+      "Tripura",
+      "Uttar Pradesh",
+      "Uttarakhand",
+      "West Bengal"
+    ],
+    "seasons": [
+      "Autumn",
+      "Kharif",
+      "Rabi",
+      "Summer",
+      "Whole Year",
+      "Winter"
+    ]
+  },
+  "input_valid_ranges": {
+    "area_ha": {
+      "min": 0.5,
+      "max": 50808100.0,
+      "median": 9300.0
+    },
+    "annual_rainfall_mm": {
+      "min": 301.3,
+      "max": 6552.7,
+      "median": 1247.0
+    },
+    "fertilizer_kg": {
+      "min": 54.17,
+      "max": 4835406877.0,
+      "median": 1229114.56
+    },
+    "pesticide_kg": {
+      "min": 0.09,
+      "max": 15750511.0,
+      "median": 2416.47
+    },
+    "fertilizer_per_ha": {
+      "min": 94.67,
+      "max": 193.61,
+      "median": 144.49
+    },
+    "pesticide_per_ha": {
+      "min": 0.09,
+      "max": 0.38,
+      "median": 0.27
+    }
+  }
+}
