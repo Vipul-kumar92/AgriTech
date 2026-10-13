@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import GoogleAuthModal, { GoogleIcon, decodeJwt } from '../components/auth/GoogleAuthModal';
+import GoogleAuthModal, { GoogleIcon } from '../components/auth/GoogleAuthModal';
+import { decodeJwt } from '../utils/jwt';
 import { Sprout, LogIn, Lock, Mail, AlertCircle, Shield, User, ArrowRight } from 'lucide-react';
 
 const LoginPage = () => {

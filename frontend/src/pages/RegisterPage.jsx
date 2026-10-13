@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import GoogleAuthModal, { GoogleIcon, decodeJwt } from '../components/auth/GoogleAuthModal';
+import GoogleAuthModal, { GoogleIcon } from '../components/auth/GoogleAuthModal';
+import { decodeJwt } from '../utils/jwt';
 import { Sprout, UserPlus, Lock, Mail, User, AlertCircle, ArrowRight } from 'lucide-react';
 
 const RegisterPage = () => {
