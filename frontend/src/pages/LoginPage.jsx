@@ -43,13 +43,6 @@ const LoginPage = () => {
       {/* Frosted Glassmorphism Login Card */}
       <div className="relative z-10 max-w-md w-full space-y-7 bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl p-8 sm:p-10 rounded-3xl border border-white/60 shadow-2xl shadow-emerald-950/50">
         
-        {/* Header Badge */}
-        <div className="flex items-center justify-center">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-            🌱 {isHindi ? 'स्मार्ट कृषि मंच' : 'AgriTech AI'}
-          </span>
-        </div>
-
         <div className="text-center">
           <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white mx-auto shadow-lg shadow-emerald-600/30">
             <Sprout className="w-8 h-8" />
@@ -87,13 +80,11 @@ const LoginPage = () => {
             <span>{isHindi ? 'Google के साथ जारी रखें' : 'Continue with Google'}</span>
           </button>
 
-          {/* Divider */}
-          <div className="relative flex items-center justify-center my-4">
-            <div className="border-t border-slate-200 flex-grow" />
-            <span className="bg-white/95 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider relative">
-              {isHindi ? 'या' : 'OR'}
+          {/* Clean 'or' text on same page */}
+          <div className="text-center my-3.5">
+            <span className="text-xs font-semibold text-slate-400 tracking-wider">
+              {isHindi ? '— या —' : '— or —'}
             </span>
-            <div className="border-t border-slate-200 flex-grow" />
           </div>
         </div>
 
