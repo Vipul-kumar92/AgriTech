@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
 import api from '../services/api';
 import { LoadingSpinner } from '../components/common/StatCard';
 import {
@@ -24,6 +25,7 @@ import {
 const PredictPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t, isHindi, translateCrop, translateSeason } = useLanguage();
   const [categories, setCategories] = useState({
     crops: [],
     states: [],
@@ -161,13 +163,15 @@ const PredictPage = () => {
       <div>
         <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-2">
           <Sprout className="w-3.5 h-3.5" />
-          <span>Production ML Inference</span>
+          <span>{isHindi ? 'मशीन लर्निंग इनफेरेंस' : 'Production ML Inference'}</span>
         </div>
         <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-          Crop Yield Prediction
+          {t('predict_header_title', 'Agricultural Yield Prediction Lab')}
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Input your agricultural and environmental parameters. Our trained Random Forest pipeline will generate an empirical yield forecast in <span className="font-semibold text-emerald-700">tonnes/hectare</span>.
+          {isHindi
+            ? 'अपने कृषि और पर्यावरणीय पैरामीटर दर्ज करें। हमारा प्रशिक्षित रैंडम फॉरेस्ट मॉडल टन/हेक्टेयर में सटीक उपज का अनुमान लगाएगा।'
+            : 'Input your agricultural and environmental parameters. Our trained Random Forest pipeline will generate an empirical yield forecast in tonnes/hectare.'}
         </p>
       </div>
 
@@ -183,13 +187,15 @@ const PredictPage = () => {
         <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
           <div className="flex items-center space-x-2 pb-3 border-b border-slate-100">
             <MapPin className="w-5 h-5 text-emerald-600" />
-            <h3 className="text-base font-bold text-slate-900">1. Crop & Geographic Location</h3>
+            <h3 className="text-base font-bold text-slate-900">
+              {isHindi ? '1. फसल एवं भौगोलिक स्थिति' : '1. Crop & Geographic Location'}
+            </h3>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                Crop Species
+                {t('predict_crop_label', 'Target Crop')}
               </label>
               <select
                 name="crop"
@@ -199,17 +205,19 @@ const PredictPage = () => {
               >
                 {categories.crops.map((c) => (
                   <option key={c} value={c}>
-                    {c}
+                    {translateCrop(c)}
                   </option>
                 ))}
               </select>
-              <p className="text-[11px] text-slate-400 mt-1">54 distinct varieties supported</p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                {isHindi ? '54 विभिन्न फसल किस्में समर्थित' : '54 distinct varieties supported'}
+              </p>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  State / Region
+                  {t('predict_state_label', 'State / Region')}
                 </label>
                 <button
                   type="button"
@@ -219,7 +227,7 @@ const PredictPage = () => {
                   title="Query Open-Meteo for real-time climate"
                 >
                   <RefreshCw className={`w-3 h-3 ${loadingWeather ? 'animate-spin' : ''}`} />
-                  <span>{loadingWeather ? 'Syncing...' : 'Sync Weather'}</span>
+                  <span>{loadingWeather ? (isHindi ? 'प्राप्त हो रहा है...' : 'Syncing...') : (isHindi ? 'मौसम सिंक' : 'Sync Weather')}</span>
                 </button>
               </div>
               <select
@@ -237,12 +245,14 @@ const PredictPage = () => {
                   </option>
                 ))}
               </select>
-              <p className="text-[11px] text-slate-400 mt-1">30 Indian States & UTs</p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                {isHindi ? '30 भारतीय राज्य एवं केंद्र शासित प्रदेश' : '30 Indian States & UTs'}
+              </p>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                Cropping Season
+                {t('predict_season_label', 'Cropping Season')}
               </label>
               <select
                 name="season"
@@ -252,11 +262,13 @@ const PredictPage = () => {
               >
                 {categories.seasons.map((sn) => (
                   <option key={sn} value={sn}>
-                    {sn}
+                    {translateSeason(sn)}
                   </option>
                 ))}
               </select>
-              <p className="text-[11px] text-slate-400 mt-1">Kharif, Rabi, Whole Year, etc.</p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                {isHindi ? 'खरीफ, रबी, संपूर्ण वर्ष, इत्यादि' : 'Kharif, Rabi, Whole Year, etc.'}
+              </p>
             </div>
           </div>
 
@@ -321,14 +333,16 @@ const PredictPage = () => {
         <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
           <div className="flex items-center space-x-2 pb-3 border-b border-slate-100">
             <CloudRain className="w-5 h-5 text-emerald-600" />
-            <h3 className="text-base font-bold text-slate-900">2. Land Extent & Climate Precipitation</h3>
+            <h3 className="text-base font-bold text-slate-900">
+              {isHindi ? '2. भूमि क्षेत्रफल एवं वार्षिक वर्षा' : '2. Land Extent & Climate Precipitation'}
+            </h3>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
               <div className="flex justify-between items-center mb-1.5">
                 <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  Cultivated Area (Hectares)
+                  {t('predict_area_label', 'Cultivated Area (Hectares)')}
                 </label>
                 <span className="text-xs font-bold text-emerald-600">{formData.area} ha</span>
               </div>
@@ -341,13 +355,15 @@ const PredictPage = () => {
                 onChange={handleChange}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
               />
-              <p className="text-[11px] text-slate-400 mt-1">1 Hectare ≈ 2.471 Acres</p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                {isHindi ? '1 हेक्टेयर ≈ 2.471 एकड़' : '1 Hectare ≈ 2.471 Acres'}
+              </p>
             </div>
 
             <div>
               <div className="flex justify-between items-center mb-1.5">
                 <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  Annual Cumulative Rainfall (mm)
+                  {t('predict_rainfall_label', 'Annual Rainfall (mm)')}
                 </label>
                 <span className="text-xs font-bold text-emerald-600">{formData.annual_rainfall} mm</span>
               </div>
@@ -361,7 +377,7 @@ const PredictPage = () => {
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
               />
               <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
-                <span>India historical avg: 600mm – 2200mm</span>
+                <span>{isHindi ? 'भारतीय औसत: 600mm – 2200mm' : 'India historical avg: 600mm – 2200mm'}</span>
                 {liveWeather && (
                   <button
                     type="button"
@@ -370,7 +386,7 @@ const PredictPage = () => {
                     }
                     className="text-emerald-600 font-bold hover:underline"
                   >
-                    Reset to {liveWeather.annual_rainfall_benchmark_mm} mm
+                    {isHindi ? `${liveWeather.annual_rainfall_benchmark_mm} मिमी सेट करें` : `Reset to ${liveWeather.annual_rainfall_benchmark_mm} mm`}
                   </button>
                 )}
               </div>
@@ -382,14 +398,16 @@ const PredictPage = () => {
         <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
           <div className="flex items-center space-x-2 pb-3 border-b border-slate-100">
             <Beaker className="w-5 h-5 text-emerald-600" />
-            <h3 className="text-base font-bold text-slate-900">3. Agricultural Inputs & Management</h3>
+            <h3 className="text-base font-bold text-slate-900">
+              {isHindi ? '3. कृषि इनपुट व प्रबंधन (खाद व कीटनाशक)' : '3. Agricultural Inputs & Management'}
+            </h3>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
               <div className="flex justify-between items-center mb-1.5">
                 <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  Total Fertilizer Applied (kg)
+                  {t('predict_fert_label', 'Total Fertilizer Input (kg)')}
                 </label>
                 <span className="text-xs font-bold text-slate-600">{formData.fertilizer} kg</span>
               </div>
@@ -403,7 +421,7 @@ const PredictPage = () => {
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
               />
               <div className="mt-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between">
-                <span>Calculated Fertilizer Intensity:</span>
+                <span>{isHindi ? 'प्रति हेक्टेयर खाद दर:' : 'Calculated Fertilizer Intensity:'}</span>
                 <span className="font-bold">{fertPerHa} kg/ha</span>
               </div>
             </div>
@@ -411,7 +429,7 @@ const PredictPage = () => {
             <div>
               <div className="flex justify-between items-center mb-1.5">
                 <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                  Total Pesticide Applied (kg)
+                  {t('predict_pest_label', 'Total Pesticide Usage (kg)')}
                 </label>
                 <span className="text-xs font-bold text-slate-600">{formData.pesticide} kg</span>
               </div>
@@ -425,7 +443,7 @@ const PredictPage = () => {
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
               />
               <div className="mt-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center justify-between">
-                <span>Calculated Pesticide Intensity:</span>
+                <span>{isHindi ? 'प्रति हेक्टेयर कीटनाशक दर:' : 'Calculated Pesticide Intensity:'}</span>
                 <span className="font-bold">{pestPerHa} kg/ha</span>
               </div>
             </div>
@@ -444,7 +462,9 @@ const PredictPage = () => {
             ) : (
               <Sprout className="w-5 h-5 mr-2" />
             )}
-            {submitting ? 'Executing Machine Learning Pipeline...' : 'Generate Prediction'}
+            {submitting
+              ? t('predict_submitting', 'Running Hyper-Tuned Random Forest...')
+              : t('predict_submit_btn', 'Generate Machine Learning Prediction')}
           </button>
         </div>
       </form>

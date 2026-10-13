@@ -63,11 +63,11 @@ const FeatureImportancePage = () => {
         </p>
       </div>
 
-      {/* Critical Academic Clarification Banner */}
+      {/* Critical Scientific Clarification Banner */}
       <div className="p-6 rounded-2xl bg-amber-50 border border-amber-200/90 text-amber-950 space-y-2">
         <div className="flex items-center space-x-2 text-amber-900 font-bold text-sm">
           <AlertCircle className="w-5 h-5 text-amber-700 flex-shrink-0" />
-          <span>Academic Principle: Correlation & Predictive Weight vs. Biological Causality</span>
+          <span>Scientific Principle: Correlation & Predictive Weight vs. Agronomic Causality</span>
         </div>
         <p className="text-xs text-amber-900 leading-relaxed">
           In strict accordance with scientific standards: <strong>Feature importance does NOT prove causation.</strong> High model importance for rainfall or fertilizer indicates that these variables strongly minimize Gini split impurity within decision trees, but does not imply that increased inputs will guarantee elevated yields without balanced soil health and pest resistance.

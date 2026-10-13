@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useLanguage } from '../context/LanguageContext';
 import {
   Sprout,
   BarChart3,
@@ -10,212 +11,219 @@ import {
   Sparkles,
   Database,
   Layers,
-  Award
+  Award,
+  Map,
+  SlidersHorizontal
 } from 'lucide-react';
 
 const LandingPage = () => {
+  const { t, isHindi } = useLanguage();
+
   return (
-    <div className="space-y-20 pb-20">
-      {/* Hero Section */}
-      <section className="relative pt-12 pb-20 overflow-hidden">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(45rem_50rem_at_top,theme(colors.emerald.100),theme(colors.white))] opacity-70" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-8">
-          <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-emerald-100/80 border border-emerald-300 text-emerald-800 text-xs font-bold tracking-wide uppercase shadow-sm">
-            <Sparkles className="w-4 h-4 text-emerald-600" />
-            <span>Final-Year B.Tech Capstone Project • AI & AgriTech</span>
+    <div className="space-y-16 pb-20">
+      {/* ========================================================================= */}
+      {/* 1. FULL-PAGE HERO WITH TRANSPARENT GLASSMORPHISM                          */}
+      {/* ========================================================================= */}
+      <section className="relative pt-6 pb-8 text-center space-y-8">
+        {/* Ambient Glowing Orbs */}
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-teal-400/20 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="max-w-4xl mx-auto space-y-6 relative z-10 bg-emerald-50/50 backdrop-blur-md p-8 sm:p-12 rounded-3xl border border-emerald-200/60 shadow-xl shadow-emerald-950/5">
+          {/* Top Badge */}
+          <div className="flex items-center justify-center">
+            <div className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-800 text-xs font-bold tracking-wide uppercase backdrop-blur-md shadow-xs">
+              <Sparkles className="w-4 h-4 text-emerald-600" />
+              <span>{t('landing_badge', 'AI-Powered Precision Agriculture • Machine Learning')}</span>
+            </div>
           </div>
 
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold text-slate-900 tracking-tight leading-[1.15]">
-            Predict. Plan. <span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Grow.</span>
+          {/* Hero Heading */}
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-slate-900 tracking-tight leading-[1.15]">
+            {t('landing_hero_h1', 'Predict. Plan.')}{' '}
+            <span className="bg-gradient-to-r from-emerald-600 via-teal-600 to-amber-600 bg-clip-text text-transparent">
+              {t('landing_hero_h1_span', 'Grow.')}
+            </span>
           </h1>
 
-          <p className="max-w-3xl mx-auto text-lg sm:text-xl text-slate-600 font-normal leading-relaxed">
-            AI-powered crop yield prediction using 24 years of authentic agricultural, environmental, and farming management data across 30 Indian states. No dummy metrics. 100% empirical machine learning.
+          {/* Subtitle */}
+          <p className="max-w-3xl mx-auto text-base sm:text-lg text-slate-700 font-medium leading-relaxed">
+            {t('landing_hero_desc', 'AI-powered crop yield prediction using 24 years of authentic agricultural, environmental, and farming management data across 30 Indian states. No dummy metrics. 100% empirical machine learning.')}
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
             <Link
               to="/predict"
-              className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3.5 text-base font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-lg shadow-emerald-600/25 transition-all hover:-translate-y-0.5"
+              className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3.5 text-base font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 rounded-2xl shadow-xl shadow-emerald-600/25 hover:scale-105 active:scale-95 transition-all duration-200"
             >
               <Sprout className="w-5 h-5 mr-2" />
-              Predict Crop Yield
+              {t('landing_btn_predict', 'Predict Crop Yield')}
             </Link>
             <Link
-              to="/analytics"
-              className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3.5 text-base font-bold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl shadow-sm transition-all hover:-translate-y-0.5"
+              to="/map"
+              className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3.5 text-base font-bold text-slate-800 bg-white/90 hover:bg-white border border-emerald-200/80 backdrop-blur-md rounded-2xl shadow-sm hover:scale-105 active:scale-95 transition-all duration-200"
             >
-              <BarChart3 className="w-5 h-5 mr-2 text-slate-500" />
-              Explore Analytics
+              <Map className="w-5 h-5 mr-2 text-emerald-600" />
+              {t('yield_map', 'Yield Map')}
             </Link>
           </div>
 
-          {/* Key Metrics Banner */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto pt-10">
-            <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 border border-slate-200/80 shadow-sm text-center">
-              <p className="text-2xl sm:text-3xl font-extrabold text-emerald-600">19,407</p>
-              <p className="text-xs font-semibold text-slate-500 mt-1">Authentic Records</p>
+          {/* 4 Soft Light Green Key Metrics Text Boxes */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto pt-6">
+            <div className="bg-emerald-50/60 hover:bg-emerald-50/80 backdrop-blur-sm rounded-2xl p-4 text-center border border-emerald-200/60 shadow-xs card-hover transition-all">
+              <p className="text-2xl sm:text-3xl font-black text-emerald-800">19,407</p>
+              <p className="text-xs font-semibold text-emerald-950/80 mt-1">{t('landing_metric_records', 'Authentic Records')}</p>
             </div>
-            <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 border border-slate-200/80 shadow-sm text-center">
-              <p className="text-2xl sm:text-3xl font-extrabold text-emerald-600">54 Crops</p>
-              <p className="text-xs font-semibold text-slate-500 mt-1">30 Indian States</p>
+            <div className="bg-emerald-50/60 hover:bg-emerald-50/80 backdrop-blur-sm rounded-2xl p-4 text-center border border-emerald-200/60 shadow-xs card-hover transition-all">
+              <p className="text-2xl sm:text-3xl font-black text-teal-800">54 Crops</p>
+              <p className="text-xs font-semibold text-emerald-950/80 mt-1">{t('landing_metric_crops', '54 Crops • 30 Indian States')}</p>
             </div>
-            <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 border border-slate-200/80 shadow-sm text-center">
-              <p className="text-2xl sm:text-3xl font-extrabold text-emerald-600">0.81 R²</p>
-              <p className="text-xs font-semibold text-slate-500 mt-1">Random Forest Tuned</p>
+            <div className="bg-emerald-50/60 hover:bg-emerald-50/80 backdrop-blur-sm rounded-2xl p-4 text-center border border-emerald-200/60 shadow-xs card-hover transition-all">
+              <p className="text-2xl sm:text-3xl font-black text-amber-800">0.81 R²</p>
+              <p className="text-xs font-semibold text-emerald-950/80 mt-1">{t('landing_metric_r2', 'Random Forest Tuned')}</p>
             </div>
-            <div className="bg-white/80 backdrop-blur-md rounded-2xl p-4 border border-slate-200/80 shadow-sm text-center">
-              <p className="text-2xl sm:text-3xl font-extrabold text-emerald-600">tonnes/ha</p>
-              <p className="text-xs font-semibold text-slate-500 mt-1">Standard Target Unit</p>
+            <div className="bg-emerald-50/60 hover:bg-emerald-50/80 backdrop-blur-sm rounded-2xl p-4 text-center border border-emerald-200/60 shadow-xs card-hover transition-all">
+              <p className="text-2xl sm:text-3xl font-black text-emerald-800">tonnes/ha</p>
+              <p className="text-xs font-semibold text-emerald-950/80 mt-1">{t('landing_metric_unit', 'Standard Target Unit')}</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Why Crop Yield Prediction? */}
+      {/* ========================================================================= */}
+      {/* 2. WHY CROP YIELD PREDICTION MATTERS (SOFT LIGHT GREEN CARDS)             */}
+      {/* ========================================================================= */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center max-w-3xl mx-auto space-y-4 mb-12">
-          <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-            Why Crop Yield Prediction Matters
+        <div className="text-center max-w-3xl mx-auto space-y-3 mb-10">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            {t('landing_why_title', 'Why Crop Yield Prediction Matters')}
           </h2>
-          <p className="text-base text-slate-600">
-            Climate variability, unpredictable precipitation, and changing soil nutrient demands make empirical agricultural forecasting crucial for food security, credit risk assessment, and farmer livelihoods.
+          <p className="text-sm sm:text-base text-slate-700">
+            {t('landing_why_desc', 'Climate variability, unpredictable precipitation, and changing soil nutrient demands make empirical agricultural forecasting crucial for food security, credit risk assessment, and farmer livelihoods.')}
           </p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8">
-          <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm card-hover">
-            <div className="w-12 h-12 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-6">
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="bg-emerald-50/55 hover:bg-emerald-50/75 backdrop-blur-md rounded-3xl p-7 border border-emerald-200/60 shadow-md shadow-emerald-950/5 card-hover transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center mb-5 shadow-xs">
               <Sprout className="w-6 h-6" />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">Farmer Decision Support</h3>
-            <p className="text-sm text-slate-600 leading-relaxed">
-              Provides farmers with data-driven yield expectations based on seasonal rainfall, cultivated land size, and chemical input intensity, assisting in harvest logistics.
+            <h3 className="text-lg font-bold text-slate-900 mb-2">
+              {t('landing_card1_title', 'Farmer Decision Support')}
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
+              {t('landing_card1_desc', 'Provides farmers with data-driven yield expectations based on seasonal rainfall, cultivated land size, and chemical input intensity, assisting in harvest logistics.')}
             </p>
           </div>
 
-          <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm card-hover">
-            <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center mb-6">
+          <div className="bg-emerald-50/55 hover:bg-emerald-50/75 backdrop-blur-md rounded-3xl p-7 border border-emerald-200/60 shadow-md shadow-emerald-950/5 card-hover transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-amber-100/80 text-amber-800 flex items-center justify-center mb-5 shadow-xs">
               <Brain className="w-6 h-6" />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">Explainable AI (XAI)</h3>
-            <p className="text-sm text-slate-600 leading-relaxed">
-              Demystifies machine learning predictions by displaying feature influence ranking, clarifying how crop genotype, geography, and inputs shape model behavior without false causality.
+            <h3 className="text-lg font-bold text-slate-900 mb-2">
+              {t('landing_card2_title', 'Explainable AI (XAI)')}
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
+              {t('landing_card2_desc', 'Demystifies machine learning predictions by displaying feature influence ranking, clarifying how crop genotype, geography, and inputs shape model behavior without false causality.')}
             </p>
           </div>
 
-          <div className="bg-white rounded-2xl p-8 border border-slate-200 shadow-sm card-hover">
-            <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center mb-6">
+          <div className="bg-emerald-50/55 hover:bg-emerald-50/75 backdrop-blur-md rounded-3xl p-7 border border-emerald-200/60 shadow-md shadow-emerald-950/5 card-hover transition-all">
+            <div className="w-12 h-12 rounded-2xl bg-teal-100/80 text-teal-800 flex items-center justify-center mb-5 shadow-xs">
               <ShieldCheck className="w-6 h-6" />
             </div>
-            <h3 className="text-xl font-bold text-slate-900 mb-2">Policy & Agricultural Credit</h3>
-            <p className="text-sm text-slate-600 leading-relaxed">
-              Enables agricultural banks, insurance providers, and government procurement agencies to benchmark seasonal productivity variations across diverse agro-climatic zones.
+            <h3 className="text-lg font-bold text-slate-900 mb-2">
+              {t('landing_card3_title', 'Policy & Agricultural Credit')}
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed">
+              {t('landing_card3_desc', 'Enables agricultural banks, insurance providers, and government procurement agencies to benchmark seasonal productivity variations across diverse agro-climatic zones.')}
             </p>
           </div>
         </div>
       </section>
 
-      {/* How It Works */}
-      <section className="bg-gradient-to-b from-slate-100/70 to-white py-16 border-y border-slate-200/60">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto space-y-4 mb-16">
-            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">How It Works</h2>
-            <p className="text-slate-600 text-base">
-              A transparent, leak-free 4-step pipeline from raw farm data to explainable yield estimates.
+      {/* ========================================================================= */}
+      {/* 3. HOW IT WORKS 4-STEP PIPELINE (SOFT LIGHT GREEN SECTION & BOXES)        */}
+      {/* ========================================================================= */}
+      <section className="bg-emerald-50/45 backdrop-blur-md py-14 px-6 sm:px-10 rounded-3xl border border-emerald-200/50 shadow-xl shadow-emerald-950/5">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center max-w-2xl mx-auto space-y-3 mb-10">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+              {t('landing_how_title', 'How It Works')}
+            </h2>
+            <p className="text-slate-700 text-sm sm:text-base">
+              {t('landing_how_desc', 'A transparent, leak-free 4-step pipeline from raw farm data to explainable yield estimates.')}
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm relative">
-              <span className="text-4xl font-extrabold text-emerald-100 absolute top-4 right-4">01</span>
-              <h4 className="text-lg font-bold text-slate-900 mb-2">Enter Farm Parameters</h4>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Select your crop, region, cropping season, cultivated area, annual precipitation, and fertilizer/pesticide usage.
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="bg-emerald-50/60 hover:bg-emerald-50/80 backdrop-blur-sm rounded-2xl p-6 border border-emerald-200/60 shadow-xs relative card-hover transition-all">
+              <span className="text-4xl font-extrabold text-emerald-200/60 absolute top-4 right-4">01</span>
+              <h4 className="text-base font-bold text-slate-900 mb-2">{t('landing_step1_title', 'Enter Farm Parameters')}</h4>
+              <p className="text-xs text-slate-700 leading-relaxed">
+                {t('landing_step1_desc', 'Select your crop, region, cropping season, cultivated area, annual precipitation, and fertilizer/pesticide usage.')}
               </p>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm relative">
-              <span className="text-4xl font-extrabold text-emerald-100 absolute top-4 right-4">02</span>
-              <h4 className="text-lg font-bold text-slate-900 mb-2">Pipeline Preprocessing</h4>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Scikit-Learn ColumnTransformer calculates application intensities (kg/ha), scales numerical inputs, and one-hot encodes categories.
+            <div className="bg-emerald-50/60 hover:bg-emerald-50/80 backdrop-blur-sm rounded-2xl p-6 border border-emerald-200/60 shadow-xs relative card-hover transition-all">
+              <span className="text-4xl font-extrabold text-emerald-200/60 absolute top-4 right-4">02</span>
+              <h4 className="text-base font-bold text-slate-900 mb-2">{t('landing_step2_title', 'Pipeline Preprocessing')}</h4>
+              <p className="text-xs text-slate-700 leading-relaxed">
+                {t('landing_step2_desc', 'Scikit-Learn ColumnTransformer calculates application intensities (kg/ha), scales numerical inputs, and one-hot encodes categories.')}
               </p>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm relative">
-              <span className="text-4xl font-extrabold text-emerald-100 absolute top-4 right-4">03</span>
-              <h4 className="text-lg font-bold text-slate-900 mb-2">Random Forest Regression</h4>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Hyperparameter-optimized ensemble model generates an authentic yield prediction in tonnes/ha with empirical interval bounds.
+            <div className="bg-emerald-50/60 hover:bg-emerald-50/80 backdrop-blur-sm rounded-2xl p-6 border border-emerald-200/60 shadow-xs relative card-hover transition-all">
+              <span className="text-4xl font-extrabold text-emerald-200/60 absolute top-4 right-4">03</span>
+              <h4 className="text-base font-bold text-slate-900 mb-2">{t('landing_step3_title', 'Random Forest Regression')}</h4>
+              <p className="text-xs text-slate-700 leading-relaxed">
+                {t('landing_step3_desc', 'Hyperparameter-optimized ensemble model generates an authentic yield prediction in tonnes/ha with empirical interval bounds.')}
               </p>
             </div>
 
-            <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm relative">
-              <span className="text-4xl font-extrabold text-emerald-100 absolute top-4 right-4">04</span>
-              <h4 className="text-lg font-bold text-slate-900 mb-2">Audit & Insights</h4>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                Prediction is recorded to MongoDB. Explore historical trends, feature influences, and regional productivity comparisons.
+            <div className="bg-emerald-50/60 hover:bg-emerald-50/80 backdrop-blur-sm rounded-2xl p-6 border border-emerald-200/60 shadow-xs relative card-hover transition-all">
+              <span className="text-4xl font-extrabold text-emerald-200/60 absolute top-4 right-4">04</span>
+              <h4 className="text-base font-bold text-slate-900 mb-2">{t('landing_step4_title', 'Audit & Insights')}</h4>
+              <p className="text-xs text-slate-700 leading-relaxed">
+                {t('landing_step4_desc', 'Prediction is securely saved to the platform registry. Explore historical trends, feature influences, and regional productivity comparisons.')}
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Technology Stack Showcase */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-10">
-        <div>
-          <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">Full-Stack Technology Stack</h2>
-          <p className="text-slate-600 text-base mt-2">Enterprise-grade architecture built to university engineering capstone standards.</p>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <p className="font-bold text-slate-900 text-base">React 18</p>
-            <p className="text-xs text-slate-500 mt-1">Tailwind CSS + Vite</p>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <p className="font-bold text-slate-900 text-base">FastAPI</p>
-            <p className="text-xs text-slate-500 mt-1">Python Async REST</p>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <p className="font-bold text-slate-900 text-base">Scikit-Learn</p>
-            <p className="text-xs text-slate-500 mt-1">Random Forest (Tuned)</p>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <p className="font-bold text-slate-900 text-base">MongoDB 8.0</p>
-            <p className="text-xs text-slate-500 mt-1">Motor Async Driver</p>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <p className="font-bold text-slate-900 text-base">Recharts</p>
-            <p className="text-xs text-slate-500 mt-1">Dynamic Visualizations</p>
-          </div>
-          <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-            <p className="font-bold text-slate-900 text-base">XAI & Auditing</p>
-            <p className="text-xs text-slate-500 mt-1">Feature Influence</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Final Call to Action */}
+      {/* ========================================================================= */}
+      {/* 4. FINAL CALL TO ACTION (FROSTED GLASS BANNER)                            */}
+      {/* ========================================================================= */}
       <section className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-tr from-emerald-800 to-teal-700 rounded-3xl p-10 sm:p-14 text-center text-white space-y-6 shadow-xl shadow-emerald-900/20">
-          <h3 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Ready to test agricultural predictions?</h3>
-          <p className="max-w-2xl mx-auto text-emerald-100 text-base">
-            Experience our machine learning models with real Indian agricultural data or review our 6-model benchmark results.
+        <div className="relative overflow-hidden rounded-3xl p-10 sm:p-14 text-center text-white space-y-6 shadow-2xl border border-emerald-500/30">
+          {/* Background Image: Golden Harvest */}
+          <div
+            className="absolute inset-0 bg-cover bg-center -z-20 scale-105"
+            style={{ backgroundImage: `url('/agri_harvest_field.jpg')` }}
+          />
+          {/* Translucent Emerald Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-r from-emerald-950/92 via-emerald-900/85 to-emerald-950/92 backdrop-blur-[2px] -z-10" />
+
+          <h3 className="text-2xl sm:text-4xl font-black tracking-tight relative z-10">
+            {t('landing_cta_title', 'Ready to test agricultural predictions?')}
+          </h3>
+          <p className="max-w-2xl mx-auto text-emerald-100 text-sm sm:text-base relative z-10">
+            {t('landing_cta_desc', 'Experience our machine learning models with real Indian agricultural data and explore interactive state-level productivity maps.')}
           </p>
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
             <Link
               to="/predict"
-              className="px-8 py-3.5 bg-white text-emerald-800 font-bold rounded-xl shadow-md hover:bg-emerald-50 transition-colors"
+              className="px-8 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold rounded-2xl shadow-xl shadow-emerald-900/40 hover:scale-105 active:scale-95 transition-all"
             >
-              Start Prediction Now
+              {t('landing_cta_btn1', 'Start Prediction Now')}
             </Link>
             <Link
-              to="/model-performance"
-              className="px-8 py-3.5 bg-emerald-700/80 hover:bg-emerald-700 text-white font-bold rounded-xl border border-emerald-500/50 transition-colors"
+              to="/map"
+              className="px-8 py-3.5 bg-white/20 hover:bg-white/30 text-white font-bold rounded-2xl border border-white/40 backdrop-blur-md hover:scale-105 active:scale-95 transition-all"
             >
-              View Model Comparison
+              {t('yield_map', 'Yield Map')}
             </Link>
           </div>
         </div>

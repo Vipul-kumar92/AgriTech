@@ -40,14 +40,29 @@ export const AuthProvider = ({ children }) => {
     return userData;
   };
 
-  const register = async (name, email, password) => {
-    const res = await api.post('/auth/register', { name, email, password });
+  const register = async (name, email, password, role = 'FARMER') => {
+    const res = await api.post('/auth/register', { name, email, password, role });
     const { access_token, user: userData } = res.data;
     localStorage.setItem('agritech_token', access_token);
     localStorage.setItem('agritech_user', JSON.stringify(userData));
     setToken(access_token);
     setUser(userData);
     return userData;
+  };
+
+  const loginWithGoogle = async (googleData) => {
+    const res = await api.post('/auth/google', googleData);
+    const { access_token, user: userData } = res.data;
+    localStorage.setItem('agritech_token', access_token);
+    localStorage.setItem('agritech_user', JSON.stringify(userData));
+    setToken(access_token);
+    setUser(userData);
+    return userData;
+  };
+
+  const updateUser = (updatedUserData) => {
+    localStorage.setItem('agritech_user', JSON.stringify(updatedUserData));
+    setUser(updatedUserData);
   };
 
   const logout = () => {
@@ -61,7 +76,7 @@ export const AuthProvider = ({ children }) => {
   const isAdmin = user?.role === 'ADMIN';
 
   return (
-    <AuthContext.Provider value={{ user, token, isAuthenticated, isAdmin, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, isAuthenticated, isAdmin, loading, login, register, loginWithGoogle, updateUser, logout }}>
       {children}
     </AuthContext.Provider>
   );

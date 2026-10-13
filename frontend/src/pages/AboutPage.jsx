@@ -13,7 +13,7 @@ import {
 
 const vivaQuestions = [
   {
-    q: 'Why did you choose Crop Yield Prediction for your B.Tech project?',
+    q: 'Why is Crop Yield Prediction a vital application of machine learning in agriculture?',
     a: 'Agriculture sustains over 50% of the Indian workforce and is highly sensitive to climate anomalies, erratic monsoons, and shifting fertilizer dynamics. Building an empirical machine learning decision-support system provides farmers, banks, and policy planners with actionable yield forecasts rather than guesswork.'
   },
   {
@@ -75,13 +75,13 @@ const AboutPage = () => {
       <div>
         <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-2">
           <BookOpen className="w-3.5 h-3.5" />
-          <span>Academic Capstone Defense</span>
+          <span>Technical Architecture & Research</span>
         </div>
         <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-          Project Thesis, Research Questions & Viva Guide
+          System Methodology, Research Principles & Technical Guide
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Comprehensive documentation of project objectives, research gaps, methodology, and oral examination defense preparation.
+          Comprehensive documentation of project objectives, research methodologies, and machine learning pipeline architecture.
         </p>
       </div>
 
@@ -149,8 +149,8 @@ const AboutPage = () => {
         <div className="flex items-center space-x-3 pb-4 border-b border-slate-100">
           <HelpCircle className="w-6 h-6 text-emerald-600" />
           <div>
-            <h2 className="text-2xl font-black text-slate-900">B.Tech Viva Examination Revision Guide</h2>
-            <p className="text-xs text-slate-500">Key questions and answers for oral examination defense</p>
+            <h2 className="text-2xl font-black text-slate-900">Technical Architecture & Research Guide</h2>
+            <p className="text-xs text-slate-500">Key architectural questions, empirical insights, and validation principles</p>
           </div>
         </div>
 

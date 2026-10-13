@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation, Link } from 'react-router-dom';
 import api from '../services/api';
+import { useLanguage } from '../context/LanguageContext';
 import { LoadingSpinner } from '../components/common/StatCard';
 import {
   Sprout,
@@ -31,6 +32,7 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGri
 const PredictionResultPage = () => {
   const { id } = useParams();
   const location = useLocation();
+  const { t, isHindi, translateCrop, translateSeason, translateState } = useLanguage();
   const [prediction, setPrediction] = useState(location.state?.prediction || null);
   const [loading, setLoading] = useState(!prediction);
   const [rating, setRating] = useState(5);
@@ -106,7 +108,7 @@ const PredictionResultPage = () => {
 
   const handleVoiceAdvisory = (lang = 'en') => {
     if (!('speechSynthesis' in window)) {
-      alert('Text-to-speech is not supported in this browser.');
+      alert(isHindi ? 'इस ब्राउज़र में टेक्स्ट-टू-स्पीच समर्थित नहीं है।' : 'Text-to-speech is not supported in this browser.');
       return;
     }
 
@@ -185,15 +187,15 @@ const PredictionResultPage = () => {
   };
 
   if (loading) {
-    return <LoadingSpinner message="Retrieving prediction forecast..." />;
+    return <LoadingSpinner message={isHindi ? 'पूर्वानुमान परिणाम लोड हो रहा है...' : 'Retrieving prediction forecast...'} />;
   }
 
   if (!prediction) {
     return (
       <div className="text-center py-20">
-        <p className="text-slate-500">Prediction record not found.</p>
+        <p className="text-slate-500">{isHindi ? 'पूर्वानुमान रिकॉर्ड नहीं मिला।' : 'Prediction record not found.'}</p>
         <Link to="/predict" className="mt-4 inline-block text-emerald-600 font-bold hover:underline">
-          Run a new prediction
+          {isHindi ? 'नया पूर्वानुमान लगाएं' : 'Run a new prediction'}
         </Link>
       </div>
     );
@@ -210,10 +212,10 @@ const PredictionResultPage = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-16 print:p-0 print:m-0 print:max-w-none">
       {/* Action Bar: Voice advisory and Print */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm print:hidden">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white/85 backdrop-blur-md p-4 rounded-2xl border border-emerald-100 shadow-sm print:hidden">
         <div className="flex items-center space-x-2">
           <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Smart Audio Advisory:
+            {isHindi ? 'स्मार्ट ऑडियो सलाह:' : 'Smart Audio Advisory:'}
           </span>
           <button
             onClick={() => handleVoiceAdvisory('en')}
@@ -252,7 +254,7 @@ const PredictionResultPage = () => {
           className="inline-flex items-center space-x-1.5 px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
         >
           <Printer className="w-4 h-4 text-slate-600" />
-          <span>Print Official Advisory Certificate</span>
+          <span>{isHindi ? 'सलाह रिपोर्ट प्रिंट करें' : 'Print Official Advisory Certificate'}</span>
         </button>
       </div>
 
@@ -276,30 +278,30 @@ const PredictionResultPage = () => {
             <div className="flex items-center space-x-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping print:hidden" />
               <span className="text-xs font-bold uppercase tracking-wider text-emerald-200 print:text-emerald-800">
-                Validated ML Forecast
+                {isHindi ? 'सत्यापित एमएल पूर्वानुमान' : 'Validated ML Forecast'}
               </span>
             </div>
             <span className="text-xs text-emerald-200 print:text-slate-600">
-              Model: <span className="font-semibold text-white print:text-slate-900">{prediction.model_name || 'Random Forest Regressor'}</span> ({prediction.model_version || 'v1.0'})
+              {isHindi ? 'मॉडल:' : 'Model:'} <span className="font-semibold text-white print:text-slate-900">{prediction.model_name || 'Random Forest Regressor'}</span> ({prediction.model_version || 'v1.0'})
             </span>
           </div>
 
           <div className="grid sm:grid-cols-2 gap-6 items-center">
             <div>
               <p className="text-emerald-200 print:text-slate-600 text-sm font-semibold uppercase tracking-wider">
-                Predicted Crop Yield
+                {isHindi ? 'अनुमानित फसल उपज' : 'Predicted Crop Yield'}
               </p>
               <div className="flex items-baseline space-x-2 mt-2">
                 <span className="text-5xl sm:text-6xl font-black tracking-tight text-white print:text-emerald-800">
                   {prediction.predicted_yield}
                 </span>
                 <span className="text-lg sm:text-xl font-bold text-emerald-200 print:text-slate-600">
-                  {prediction.unit || 'tonnes/hectare'}
+                  {isHindi ? 'टन / हेक्टेयर' : prediction.unit || 'tonnes/hectare'}
                 </span>
               </div>
               <p className="text-xs text-emerald-300 print:text-slate-500 mt-2 flex items-center">
                 <CheckCircle className="w-4 h-4 mr-1 text-emerald-400 print:text-emerald-700" />
-                Unit rigorously verified in metric tonnes per hectare
+                {isHindi ? 'प्रामाणिक मीट्रिक टन प्रति हेक्टेयर में सत्यापित' : 'Unit rigorously verified in metric tonnes per hectare'}
               </p>
             </div>
 
@@ -307,24 +309,28 @@ const PredictionResultPage = () => {
             <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/10 space-y-3 print:bg-slate-50 print:border-slate-200">
               <div>
                 <p className="text-xs font-semibold text-emerald-200 print:text-slate-600 uppercase tracking-wider">
-                  Estimated Total Harvest Production
+                  {isHindi ? 'कुल अनुमानित उत्पादन' : 'Estimated Total Harvest Production'}
                 </p>
                 <p className="text-2xl sm:text-3xl font-extrabold text-white print:text-slate-900 mt-1">
                   {prediction.predicted_total_production}{' '}
-                  <span className="text-sm font-normal text-emerald-200 print:text-slate-600">Metric Tonnes</span>
+                  <span className="text-sm font-normal text-emerald-200 print:text-slate-600">
+                    {isHindi ? 'मीट्रिक टन' : 'Metric Tonnes'}
+                  </span>
                 </p>
                 <p className="text-[11px] text-emerald-300 print:text-slate-500">
-                  Calculated as: {prediction.predicted_yield} t/ha × {inputs.area_hectares || inputs.area} hectares
+                  {isHindi
+                    ? `गणना: ${prediction.predicted_yield} टन/हे. × ${inputs.area_hectares || inputs.area} हेक्टेयर`
+                    : `Calculated as: ${prediction.predicted_yield} t/ha × ${inputs.area_hectares || inputs.area} hectares`}
                 </p>
               </div>
 
               {prediction.prediction_interval && (
                 <div className="pt-2 border-t border-white/10 print:border-slate-200">
                   <p className="text-xs text-emerald-200 print:text-slate-600 font-medium">
-                    Estimated 80% Empirical Interval:
+                    {isHindi ? '80% अनुभवजन्य विश्वास अंतराल:' : 'Estimated 80% Empirical Interval:'}
                   </p>
                   <p className="text-sm font-bold text-white print:text-emerald-800">
-                    {prediction.prediction_interval.lower} – {prediction.prediction_interval.upper} tonnes/ha
+                    {prediction.prediction_interval.lower} – {prediction.prediction_interval.upper} {isHindi ? 'टन/हे.' : 'tonnes/ha'}
                   </p>
                 </div>
               )}
@@ -335,12 +341,12 @@ const PredictionResultPage = () => {
 
       {/* Next-Level Module: Government MSP Economic Revenue & Return Calculator */}
       {economics && (
-        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+        <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-emerald-100 shadow-sm space-y-6">
           <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-100 gap-2">
             <div className="flex items-center space-x-2">
               <IndianRupee className="w-5 h-5 text-emerald-600" />
               <h3 className="text-base font-bold text-slate-900">
-                Government MSP Farm Revenue & Economic Return Analysis
+                {isHindi ? 'सरकारी एमएसपी (MSP) आय एवं आर्थिक लाभ विश्लेषण' : 'Government MSP Farm Revenue & Economic Return Analysis'}
               </h3>
             </div>
             <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
@@ -351,100 +357,102 @@ const PredictionResultPage = () => {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200">
               <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider block">
-                Official MSP Rate
+                {isHindi ? 'सरकारी एमएसपी दर' : 'Official MSP Rate'}
               </span>
               <p className="text-xl font-extrabold text-emerald-950 mt-1">
                 ₹{economics.msp_per_quintal_inr.toLocaleString('en-IN')}
-                <span className="text-xs font-medium text-emerald-700"> / quintal</span>
+                <span className="text-xs font-medium text-emerald-700"> {isHindi ? '/ क्विंटल' : '/ quintal'}</span>
               </p>
-              <span className="text-[10px] text-emerald-600 mt-1 block">1 Quintal = 100 kg</span>
+              <span className="text-[10px] text-emerald-600 mt-1 block">1 क्विंटल = 100 kg</span>
             </div>
 
             <div className="p-4 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200">
               <span className="text-[11px] font-semibold text-blue-700 uppercase tracking-wider block">
-                Estimated Gross Revenue
+                {isHindi ? 'अनुमानित सकल आमदनी' : 'Estimated Gross Revenue'}
               </span>
               <p className="text-xl font-extrabold text-blue-950 mt-1">
-                ₹{economics.gross_revenue_lakhs} <span className="text-xs font-medium text-blue-700">Lakhs</span>
+                ₹{economics.gross_revenue_lakhs} <span className="text-xs font-medium text-blue-700">{isHindi ? 'लाख' : 'Lakhs'}</span>
               </p>
               <span className="text-[10px] text-blue-600 mt-1 block">
-                ₹{Math.round(economics.gross_revenue_inr).toLocaleString('en-IN')} Total
+                ₹{Math.round(economics.gross_revenue_inr).toLocaleString('en-IN')} {isHindi ? 'कुल' : 'Total'}
               </span>
             </div>
 
             <div className="p-4 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200">
               <span className="text-[11px] font-semibold text-amber-700 uppercase tracking-wider block">
-                Input Chemical Costs
+                {isHindi ? 'रासायनिक इनपुट लागत' : 'Input Chemical Costs'}
               </span>
               <p className="text-xl font-extrabold text-amber-950 mt-1">
                 ₹{Math.round(economics.total_chemical_cost_inr).toLocaleString('en-IN')}
               </p>
-              <span className="text-[10px] text-amber-600 mt-1 block">Fertilizers & Pesticides</span>
+              <span className="text-[10px] text-amber-600 mt-1 block">{isHindi ? 'खाद एवं कीटनाशक' : 'Fertilizers & Pesticides'}</span>
             </div>
 
             <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-sm">
               <span className="text-[11px] font-semibold text-emerald-200 uppercase tracking-wider block">
-                Estimated Net Farm Surplus
+                {isHindi ? 'अनुमानित शुद्ध किसान लाभ' : 'Estimated Net Farm Surplus'}
               </span>
               <p className="text-xl font-extrabold text-white mt-1">
                 ₹{Math.round(economics.net_farm_return_inr).toLocaleString('en-IN')}
               </p>
               <span className="text-[10px] text-emerald-200 mt-1 block font-bold">
-                Margin: {economics.profit_margin_pct}%
+                {isHindi ? 'मार्जिन: ' : 'Margin: '}{economics.profit_margin_pct}%
               </span>
             </div>
           </div>
 
           <p className="text-[11px] text-slate-500 italic">
-            * Economic calculation based on Government of India 2024–25 Minimum Support Prices (MSP) and CACP standard fertilizer/pesticide cost indices. Field labour, electricity, and transport overheads vary regionally.
+            {isHindi
+              ? '* आर्थिक गणना भारत सरकार के न्यूनतम समर्थन मूल्य (MSP) और मानक उर्वरक/कीटनाशक लागत सूचकांकों पर आधारित है।'
+              : '* Economic calculation based on Government of India Minimum Support Prices (MSP) and CACP standard fertilizer/pesticide cost indices.'}
           </p>
         </div>
       )}
 
       {/* Input Parameters Summary */}
-      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-6">
+      <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-emerald-100 shadow-sm space-y-6">
         <h3 className="text-lg font-bold text-slate-900 border-b border-slate-100 pb-3">
-          Input Farm Parameters Summary
+          {isHindi ? 'दर्ज कृषि पैरामीटर्स का विवरण' : 'Input Farm Parameters Summary'}
         </h3>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Crop</span>
-            <span className="font-extrabold text-slate-900 text-base">{inputs.crop}</span>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">{isHindi ? 'फसल' : 'Crop'}</span>
+            <span className="font-extrabold text-slate-900 text-base">{isHindi ? translateCrop(inputs.crop) : inputs.crop}</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">State / Region</span>
-            <span className="font-extrabold text-slate-900 text-base">{inputs.state}</span>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">{isHindi ? 'राज्य / क्षेत्र' : 'State / Region'}</span>
+            <span className="font-extrabold text-slate-900 text-base">{isHindi ? translateState(inputs.state) : inputs.state}</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Cropping Season</span>
-            <span className="font-extrabold text-slate-900 text-base">{inputs.season}</span>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">{isHindi ? 'बुवाई का मौसम' : 'Cropping Season'}</span>
+            <span className="font-extrabold text-slate-900 text-base">{isHindi ? translateSeason(inputs.season) : inputs.season}</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Cultivated Area</span>
-            <span className="font-extrabold text-slate-900 text-base">{inputs.area_hectares || inputs.area} ha</span>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">{isHindi ? 'क्षेत्रफल' : 'Cultivated Area'}</span>
+            <span className="font-extrabold text-slate-900 text-base">{inputs.area_hectares || inputs.area} {isHindi ? 'हेक्टेयर' : 'ha'}</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Annual Rainfall</span>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">{isHindi ? 'वार्षिक वर्षा' : 'Annual Rainfall'}</span>
             <span className="font-extrabold text-slate-900 text-base">{inputs.annual_rainfall_mm || inputs.annual_rainfall} mm</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Total Fertilizer</span>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">{isHindi ? 'कुल खाद' : 'Total Fertilizer'}</span>
             <span className="font-extrabold text-slate-900 text-base">{inputs.fertilizer_kg || inputs.fertilizer} kg</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Total Pesticide</span>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">{isHindi ? 'कुल कीटनाशक' : 'Total Pesticide'}</span>
             <span className="font-extrabold text-slate-900 text-base">{inputs.pesticide_kg || inputs.pesticide} kg</span>
           </div>
 
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Crop Year</span>
+            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider block">{isHindi ? 'फसल वर्ष' : 'Crop Year'}</span>
             <span className="font-extrabold text-slate-900 text-base">{inputs.crop_year || 2024}</span>
           </div>
         </div>
@@ -452,11 +460,15 @@ const PredictionResultPage = () => {
 
       {/* Model Feature Influence Chart */}
       {influenceData.length > 0 && (
-        <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-4 print:hidden">
+        <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-emerald-100 shadow-sm space-y-4 print:hidden">
           <div>
-            <h3 className="text-lg font-bold text-slate-900">Model Feature Influence</h3>
+            <h3 className="text-lg font-bold text-slate-900">
+              {isHindi ? 'मॉडल निर्णय कारक प्रभाव (Feature Influence)' : 'Model Feature Influence'}
+            </h3>
             <p className="text-xs text-slate-500">
-              Aggregated Gini importance indicating the relative weight of agricultural attributes in the trained model.
+              {isHindi
+                ? 'ट्रेन्ड मॉडल में विभिन्न कृषि विशेषताओं के सापेक्ष भार को दर्शाने वाला महत्व प्रतिशत।'
+                : 'Aggregated Gini importance indicating the relative weight of agricultural attributes in the trained model.'}
             </p>
           </div>
 
@@ -467,7 +479,7 @@ const PredictionResultPage = () => {
                 <XAxis type="number" unit="%" tick={{ fontSize: 11, fill: '#64748b' }} />
                 <YAxis dataKey="feature" type="category" tick={{ fontSize: 11, fill: '#64748b' }} />
                 <Tooltip
-                  formatter={(val) => [`${val}%`, 'Relative Influence']}
+                  formatter={(val) => [`${val}%`, isHindi ? 'सापेक्ष प्रभाव' : 'Relative Influence']}
                   contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0' }}
                 />
                 <Bar dataKey="influence" fill="#059669" radius={[0, 6, 6, 0]} />
@@ -475,28 +487,36 @@ const PredictionResultPage = () => {
             </ResponsiveContainer>
           </div>
           <p className="text-[11px] text-slate-400 italic">
-            * Note: Feature importance illustrates statistical dependency within the Random Forest estimator and does not prove biological causality.
+            {isHindi
+              ? '* नोट: यह चार्ट रैंडम फॉरेस्ट मॉडल के सांख्यिकीय निर्भरता भार को दर्शाता है।'
+              : '* Note: Feature importance illustrates statistical dependency within the Random Forest estimator.'}
           </p>
         </div>
       )}
 
       {/* Farmer Feedback Submission */}
-      <div className="bg-white rounded-2xl p-6 sm:p-8 border border-slate-200 shadow-sm space-y-4 print:hidden">
-        <h3 className="text-lg font-bold text-slate-900">Farmer & Field Evaluation Feedback</h3>
+      <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-emerald-100 shadow-sm space-y-4 print:hidden">
+        <h3 className="text-lg font-bold text-slate-900">
+          {isHindi ? 'किसान एवं क्षेत्रीय मूल्यांकन प्रतिक्रिया' : 'Farmer & Field Evaluation Feedback'}
+        </h3>
         <p className="text-xs text-slate-500">
-          How closely does this prediction reflect typical yields in your region?
+          {isHindi
+            ? 'क्या यह पूर्वानुमान आपके क्षेत्र की सामान्य उपज से मेल खाता है?'
+            : 'How closely does this prediction reflect typical yields in your region?'}
         </p>
 
         {feedbackSubmitted ? (
           <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center">
             <CheckCircle className="w-5 h-5 mr-2 text-emerald-600 flex-shrink-0" />
-            Thank you! Your feedback has been logged to the database for continuous evaluation.
+            {isHindi
+              ? 'धन्यवाद! आपकी बहुमूल्य प्रतिक्रिया मॉडल सुधार हेतु सुरक्षित कर ली गई है।'
+              : 'Thank you! Your feedback has been logged to the database for continuous evaluation.'}
           </div>
         ) : (
           <form onSubmit={handleFeedbackSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2">
-                Satisfaction Rating (1 to 5 Stars)
+                {isHindi ? 'संतुष्टि रेटिंग (1 से 5 सितारे)' : 'Satisfaction Rating (1 to 5 Stars)'}
               </label>
               <div className="flex items-center space-x-2">
                 {[1, 2, 3, 4, 5].map((star) => (
@@ -513,19 +533,19 @@ const PredictionResultPage = () => {
                     />
                   </button>
                 ))}
-                <span className="text-xs font-bold text-slate-600 ml-2">{rating} / 5 Stars</span>
+                <span className="text-xs font-bold text-slate-600 ml-2">{rating} / 5 {isHindi ? 'सितारे' : 'Stars'}</span>
               </div>
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                Qualitative Feedback (Optional)
+                {isHindi ? 'आपकी टिप्पणी (वैकल्पिक)' : 'Qualitative Feedback (Optional)'}
               </label>
               <textarea
                 rows={2}
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                placeholder="Share thoughts on regional accuracy, irrigation nuance, or soil conditions..."
+                placeholder={isHindi ? 'क्षेत्रीय उपज सटीकता या सिंचाई की स्थिति पर अपनी राय साझा करें...' : 'Share thoughts on regional accuracy, irrigation nuance, or soil conditions...'}
                 className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
               />
             </div>
@@ -533,10 +553,10 @@ const PredictionResultPage = () => {
             <button
               type="submit"
               disabled={submittingFeedback}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl transition-colors flex items-center disabled:opacity-50"
+              className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-sm rounded-xl transition-all flex items-center disabled:opacity-50 shadow-sm"
             >
               <Send className="w-4 h-4 mr-1.5" />
-              {submittingFeedback ? 'Submitting...' : 'Submit Feedback'}
+              {submittingFeedback ? (isHindi ? 'दर्ज हो रहा है...' : 'Submitting...') : (isHindi ? 'प्रतिक्रिया भेजें' : 'Submit Feedback')}
             </button>
           </form>
         )}
@@ -548,7 +568,7 @@ const PredictionResultPage = () => {
           to="/predict"
           className="w-full sm:w-auto px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-sm transition-colors text-center"
         >
-          ← Run Another Prediction
+          {isHindi ? '← दूसरा नया पूर्वानुमान लगाएं' : '← Run Another Prediction'}
         </Link>
         <div className="flex flex-wrap gap-3 w-full sm:w-auto">
           <Link
@@ -556,13 +576,13 @@ const PredictionResultPage = () => {
             className="flex-1 sm:flex-initial px-5 py-3 bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold text-sm rounded-xl border border-teal-200 transition-colors text-center flex items-center justify-center space-x-1"
           >
             <Sparkles className="w-4 h-4 mr-1 text-teal-600" />
-            <span>Simulate Climate Shocks</span>
+            <span>{isHindi ? 'व्हाट-इफ़ सिम्युलेटर' : 'Simulate Climate Shocks'}</span>
           </Link>
           <Link
             to="/history"
             className="flex-1 sm:flex-initial px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-sm rounded-xl transition-colors text-center"
           >
-            View History →
+            {isHindi ? 'इतिहास देखें →' : 'View History →'}
           </Link>
         </div>
       </div>

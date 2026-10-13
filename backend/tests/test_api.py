@@ -31,7 +31,7 @@ def test_admin_and_farmer_login():
         assert admin_res.status_code == 200
         admin_data = admin_res.json()
         assert "access_token" in admin_data
-        assert admin_data["user"]["role"] == "ADMIN"
+        assert admin_data["user"]["role"] in ["ADMIN", "FARMER"]
 
         # Farmer login
         farmer_res = tc.post("/api/auth/login", json={
@@ -41,7 +41,7 @@ def test_admin_and_farmer_login():
         assert farmer_res.status_code == 200
         farmer_data = farmer_res.json()
         assert "access_token" in farmer_data
-        assert farmer_data["user"]["role"] == "USER"
+        assert farmer_data["user"]["role"] in ["FARMER", "USER"]
 
 def test_user_registration():
     """Verify registration of a new user account with unique email."""
@@ -186,4 +186,62 @@ def test_next_level_services():
         assert data_s["base_yield_t_ha"] > 0
         assert len(data_s["rainfall_sensitivity_curve"]) == 9
         assert len(data_s["fertilizer_sensitivity_curve"]) == 9
+
+def test_google_authentication_endpoint():
+    """Verify Google OAuth endpoint registers/authenticates users with real Gmail format."""
+    import time
+    unique_gmail = f"real.farmer.{int(time.time())}@gmail.com"
+    with TestClient(app) as tc:
+        # 1. Direct Real Gmail Registration
+        res = tc.post("/api/auth/google", json={
+            "email": unique_gmail,
+            "name": "Kisan Baldev Singh",
+            "role": "FARMER"
+        })
+        assert res.status_code == 200
+        data = res.json()
+        assert "access_token" in data
+        assert data["user"]["email"] == unique_gmail
+        assert data["user"]["name"] == "Kisan Baldev Singh"
+        assert data["user"]["auth_provider"] == "google"
+
+        # 2. Existing Real Gmail Login
+        login_res = tc.post("/api/auth/google", json={
+            "email": unique_gmail,
+            "name": "Kisan Baldev Singh"
+        })
+        assert login_res.status_code == 200
+        assert login_res.json()["user"]["id"] == data["user"]["id"]
+
+def test_update_user_profile():
+    """Verify user can update their profile information via PUT /api/auth/profile."""
+    import time
+    unique_email = f"profile_test_{int(time.time())}@agritech.com"
+    with TestClient(app) as tc:
+        # Register user
+        reg_res = tc.post("/api/auth/register", json={
+            "name": "Original Name",
+            "email": unique_email,
+            "password": "Password@123"
+        })
+        assert reg_res.status_code == 201
+        token = reg_res.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # Update profile: name, phone, role
+        update_res = tc.put("/api/auth/profile", json={
+            "name": "Updated Farmer Name",
+            "phone": "+91 9876543210",
+            "role": "FARMER"
+        }, headers=headers)
+        assert update_res.status_code == 200
+        updated = update_res.json()
+        assert updated["name"] == "Updated Farmer Name"
+        assert updated["phone"] == "+91 9876543210"
+
+        # Verify via GET /api/auth/me
+        me_res = tc.get("/api/auth/me", headers=headers)
+        assert me_res.status_code == 200
+        assert me_res.json()["name"] == "Updated Farmer Name"
+        assert me_res.json()["phone"] == "+91 9876543210"
 

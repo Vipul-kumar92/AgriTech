@@ -6,10 +6,13 @@ Write-Host "====================================================================
 $env:PATH = "C:\Program Files\nodejs;$env:PATH"
 
 # Ensure MongoDB service is running
-Get-Service -Name "MongoDB" -ErrorAction SilentlyContinue | Start-Service
+$mongoService = Get-Service -Name "MongoDB" -ErrorAction SilentlyContinue
+if ($mongoService -and $mongoService.Status -ne 'Running') {
+    Start-Service -Name "MongoDB" -ErrorAction SilentlyContinue
+}
 
 # Start FastAPI Backend in background
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000"
+Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location 'd:\AgriTech'; python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000"
 
 # Start React Frontend in background
 Start-Process powershell -ArgumentList "-NoExit", "-Command", "Set-Location 'd:\AgriTech\frontend'; `$env:PATH = 'C:\Program Files\nodejs;`$env:PATH'; npm run dev -- --host 127.0.0.1 --port 5173"
