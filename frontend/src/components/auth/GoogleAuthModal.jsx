@@ -39,7 +39,7 @@ export const GoogleIcon = ({ className = "w-5 h-5" }) => (
   </svg>
 );
 
-const decodeJwt = (token) => {
+export const decodeJwt = (token) => {
   try {
     const base64Url = token.split('.')[1];
     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -55,12 +55,12 @@ const decodeJwt = (token) => {
   }
 };
 
-const GoogleAuthModal = ({ isOpen, onClose }) => {
+const GoogleAuthModal = ({ isOpen, onClose, onClientIdUpdated }) => {
   const { loginWithGoogle } = useAuth();
   const { isHindi } = useLanguage();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState('gmail'); // 'gmail' or 'gis'
+  const [activeTab, setActiveTab] = useState('gis'); // 'gis' for real Google account popup
   const [realEmail, setRealEmail] = useState('');
   const [fullName, setFullName] = useState('');
   const role = 'FARMER';
@@ -73,6 +73,7 @@ const GoogleAuthModal = ({ isOpen, onClose }) => {
   const [showConfig, setShowConfig] = useState(!initialClientId);
   const [savedClientIdSuccess, setSavedClientIdSuccess] = useState(false);
   const [gisLoaded, setGisLoaded] = useState(false);
+
 
   const googleButtonRef = useRef(null);
 
@@ -180,16 +181,33 @@ const GoogleAuthModal = ({ isOpen, onClose }) => {
     }
   };
 
-  const handleSaveClientId = (e) => {
+  const handleSaveClientId = async (e) => {
     e.preventDefault();
-    if (!clientId.trim()) {
+    const cleanId = clientId.trim();
+    if (!cleanId) {
       localStorage.removeItem('agritech_google_client_id');
       setSavedClientIdSuccess(false);
+      if (onClientIdUpdated) onClientIdUpdated('');
       return;
     }
-    localStorage.setItem('agritech_google_client_id', clientId.trim());
+    localStorage.setItem('agritech_google_client_id', cleanId);
     setSavedClientIdSuccess(true);
-    setTimeout(() => setSavedClientIdSuccess(false), 3000);
+    if (onClientIdUpdated) onClientIdUpdated(cleanId);
+
+    try {
+      await fetch('/api/auth/google-client-id', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: cleanId }),
+      });
+    } catch (err) {
+      console.warn('Backend client_id persistence note:', err);
+    }
+
+    setTimeout(() => {
+      setSavedClientIdSuccess(false);
+      setShowConfig(false);
+    }, 1500);
   };
 
   const isLikelyGmail = realEmail.toLowerCase().includes('@gmail.com');

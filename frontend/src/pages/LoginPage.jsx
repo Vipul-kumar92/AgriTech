@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import GoogleAuthModal, { GoogleIcon } from '../components/auth/GoogleAuthModal';
+import GoogleAuthModal, { GoogleIcon, decodeJwt } from '../components/auth/GoogleAuthModal';
 import { Sprout, LogIn, Lock, Mail, AlertCircle, Shield, User, ArrowRight } from 'lucide-react';
 
 const LoginPage = () => {
@@ -11,12 +11,68 @@ const LoginPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
+  const [googleClientId, setGoogleClientId] = useState(
+    () => import.meta.env.VITE_GOOGLE_CLIENT_ID || localStorage.getItem('agritech_google_client_id') || ''
+  );
 
-  const { login } = useAuth();
+  const googleButtonRef = useRef(null);
+  const { login, loginWithGoogle } = useAuth();
   const { t, isHindi } = useLanguage();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isExpired = searchParams.get('expired') === '1';
+
+  // Real Google Identity Services (GIS) Account Chooser integration
+  useEffect(() => {
+    if (!googleClientId.trim() || !window.google?.accounts?.id) return;
+    try {
+      window.google.accounts.id.initialize({
+        client_id: googleClientId.trim(),
+        callback: handleGoogleCredentialResponse,
+        auto_select: false,
+      });
+
+      if (googleButtonRef.current) {
+        googleButtonRef.current.innerHTML = '';
+        window.google.accounts.id.renderButton(googleButtonRef.current, {
+          theme: 'outline',
+          size: 'large',
+          type: 'standard',
+          shape: 'rectangular',
+          text: 'continue_with',
+          logo_alignment: 'left',
+          width: 360,
+        });
+      }
+      // Trigger Google One-Tap prompt on supported devices
+      window.google.accounts.id.prompt();
+    } catch (err) {
+      console.warn('GIS initialization note:', err);
+    }
+  }, [googleClientId]);
+
+  const handleGoogleCredentialResponse = async (response) => {
+    setError('');
+    setLoading(true);
+    try {
+      const decoded = decodeJwt(response.credential);
+      await loginWithGoogle({
+        token: response.credential,
+        email: decoded?.email,
+        name: decoded?.name,
+        picture: decoded?.picture,
+        role: 'FARMER',
+      });
+      navigate('/dashboard');
+    } catch (err) {
+      setError(
+        err.response?.data?.detail || 
+        (isHindi ? 'Google प्रमाणीकरण विफल रहा' : 'Google authentication failed')
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -71,14 +127,27 @@ const LoginPage = () => {
 
         {/* Google Authentication Button */}
         <div>
-          <button
-            type="button"
-            onClick={() => setIsGoogleModalOpen(true)}
-            className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-300 hover:border-emerald-500 text-slate-700 font-bold text-sm rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center space-x-3 group"
-          >
-            <GoogleIcon className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" />
-            <span>{isHindi ? 'Google के साथ जारी रखें' : 'Continue with Google'}</span>
-          </button>
+          {googleClientId ? (
+            <div className="w-full flex flex-col items-center justify-center space-y-1.5">
+              <div ref={googleButtonRef} className="w-full flex justify-center min-h-[44px]" />
+              <button
+                type="button"
+                onClick={() => setIsGoogleModalOpen(true)}
+                className="text-[11px] text-slate-400 hover:text-emerald-600 transition-colors underline"
+              >
+                {isHindi ? 'Google Client ID बदलें' : 'Settings / Change Client ID'}
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsGoogleModalOpen(true)}
+              className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-300 hover:border-emerald-500 text-slate-700 font-bold text-sm rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center space-x-3 group"
+            >
+              <GoogleIcon className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" />
+              <span>{isHindi ? 'Google के साथ जारी रखें' : 'Continue with Google'}</span>
+            </button>
+          )}
 
           {/* Clean 'or' text on same page */}
           <div className="text-center my-3.5">
@@ -151,6 +220,7 @@ const LoginPage = () => {
       <GoogleAuthModal 
         isOpen={isGoogleModalOpen} 
         onClose={() => setIsGoogleModalOpen(false)} 
+        onClientIdUpdated={(newId) => setGoogleClientId(newId)}
       />
     </div>
   );

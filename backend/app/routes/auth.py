@@ -6,7 +6,7 @@ AI-Based Crop Yield Prediction System
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, status
 from bson import ObjectId
-from backend.app.schemas.auth import UserRegister, UserLogin, GoogleAuthRequest, UserProfileUpdate, UserResponse, Token
+from backend.app.schemas.auth import UserRegister, UserLogin, GoogleAuthRequest, UserProfileUpdate, UserResponse, Token, GoogleClientIdUpdate
 from backend.app.auth.security import hash_password, verify_password
 from backend.app.auth.jwt_handler import create_access_token, get_current_user
 from backend.app.database import get_database
@@ -274,3 +274,36 @@ async def update_profile(
         picture=updated_user.get("picture"),
         phone=updated_user.get("phone")
     )
+
+import os
+
+@router.post("/google-client-id")
+async def save_google_client_id(payload: GoogleClientIdUpdate):
+    """
+    Save Google OAuth 2.0 Client ID to frontend/.env configuration file.
+    """
+    client_id = payload.client_id.strip()
+    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+    env_path = os.path.join(root_dir, "frontend", ".env")
+    try:
+        lines = []
+        if os.path.exists(env_path):
+            with open(env_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+        updated = False
+        new_lines = []
+        for line in lines:
+            if line.startswith("VITE_GOOGLE_CLIENT_ID="):
+                new_lines.append(f'VITE_GOOGLE_CLIENT_ID="{client_id}"\n')
+                updated = True
+            else:
+                new_lines.append(line)
+        if not updated:
+            new_lines.append(f'VITE_GOOGLE_CLIENT_ID="{client_id}"\n')
+        with open(env_path, "w", encoding="utf-8") as f:
+            f.writelines(new_lines)
+    except Exception as e:
+        logger.warning(f"Could not persist client_id to frontend/.env: {e}")
+        
+    return {"status": "success", "client_id": client_id}
+

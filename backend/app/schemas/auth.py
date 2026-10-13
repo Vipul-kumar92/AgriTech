@@ -48,3 +48,7 @@ class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserResponse
+
+class GoogleClientIdUpdate(BaseModel):
+    client_id: str = Field(..., description="Google OAuth 2.0 Client ID")
+
