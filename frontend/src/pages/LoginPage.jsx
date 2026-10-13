@@ -138,22 +138,22 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="relative min-h-[calc(100vh-8rem)] flex items-center justify-center px-4 sm:px-6 lg:px-8 py-10">
+    <div className="relative min-h-[calc(100vh-8rem)] flex items-center justify-center px-3.5 sm:px-6 lg:px-8 py-6 sm:py-10">
       {/* Ambient Glowing Orbs */}
       <div className="absolute top-1/4 -left-20 w-80 h-80 bg-emerald-500/25 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-teal-500/20 rounded-full blur-3xl pointer-events-none" />
 
       {/* Frosted Glassmorphism Login Card */}
-      <div className="relative z-10 max-w-md w-full space-y-7 bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl p-8 sm:p-10 rounded-3xl border border-white/60 shadow-2xl shadow-emerald-950/50">
+      <div className="relative z-10 max-w-md w-full space-y-6 sm:space-y-7 bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl p-5 sm:p-8 md:p-10 rounded-3xl border border-white/60 shadow-2xl shadow-emerald-950/50">
         
         <div className="text-center">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white mx-auto shadow-lg shadow-emerald-600/30">
-            <Sprout className="w-8 h-8" />
+          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white mx-auto shadow-lg shadow-emerald-600/30">
+            <Sprout className="w-7 h-7 sm:w-8 sm:h-8" />
           </div>
-          <h2 className="mt-4 text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+          <h2 className="mt-3.5 text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
             {isHindi ? 'लॉग इन करें' : 'Sign In to AgriYield'}
           </h2>
-          <p className="mt-1.5 text-xs sm:text-sm text-slate-500">
+          <p className="mt-1 text-xs sm:text-sm text-slate-500">
             {isHindi ? 'अपने कृषि कार्यक्षेत्र और पूर्वानुमान डेटा तक पहुंचें' : 'Access your agricultural workspace & predictions'}
           </p>
         </div>
@@ -204,7 +204,7 @@ const LoginPage = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="farmer@agritech.com"
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50/80 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all font-medium text-slate-800"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50/80 border border-slate-300 rounded-xl text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all font-medium text-slate-800"
               />
             </div>
           </div>
@@ -221,7 +221,7 @@ const LoginPage = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50/80 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all font-medium text-slate-800"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50/80 border border-slate-300 rounded-xl text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all font-medium text-slate-800"
               />
             </div>
           </div>

@@ -145,105 +145,105 @@ const AgriMapPage = () => {
         </div>
 
         {/* View Switcher Tabs */}
-        <div className="flex items-center p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/80 shadow-inner space-x-1">
+        <div className="flex items-center p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 shadow-inner space-x-1 overflow-x-auto max-w-full scrollbar-none">
           <button
             onClick={() => setViewMode('map')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+            className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 flex-shrink-0 ${
               viewMode === 'map'
                 ? 'bg-white text-emerald-700 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Compass className="w-4 h-4" />
-            <span>{isHindi ? 'मानचित्र दृश्य' : 'Interactive Map'}</span>
+            <span>{isHindi ? 'मानचित्र दृश्य' : 'Map View'}</span>
           </button>
           <button
             onClick={() => setViewMode('leaderboard')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+            className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 flex-shrink-0 ${
               viewMode === 'leaderboard'
                 ? 'bg-white text-emerald-700 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <BarChart3 className="w-4 h-4" />
-            <span>{isHindi ? 'रैंकिंग चार्ट' : 'Leaderboard'}</span>
+            <span>{isHindi ? 'रैंकिंग' : 'Leaderboard'}</span>
           </button>
           <button
             onClick={() => setViewMode('grid')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 ${
+            className={`px-3 sm:px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 flex-shrink-0 ${
               viewMode === 'grid'
                 ? 'bg-white text-emerald-700 shadow-sm'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Layers className="w-4 h-4" />
-            <span>{isHindi ? 'राज्य कार्ड्स' : 'Directory Cards'}</span>
+            <span>{isHindi ? 'राज्य कार्ड्स' : 'Directory'}</span>
           </button>
         </div>
       </div>
 
       {/* National KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 sm:p-5 rounded-2xl bg-white/85 backdrop-blur-md border border-slate-200/90 shadow-sm hover:shadow-md transition-all">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="p-3.5 sm:p-5 rounded-2xl bg-white/85 backdrop-blur-md border border-slate-200/90 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between text-slate-500 text-xs font-bold uppercase tracking-wider">
             <span>{isHindi ? 'राष्ट्रीय औसत उपज' : 'National Avg Yield'}</span>
             <TrendingUp className="w-4 h-4 text-emerald-600" />
           </div>
-          <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-2">
+          <p className="text-xl sm:text-3xl font-black text-slate-900 mt-2">
             {nationalStats.avgYield} <span className="text-xs font-semibold text-slate-500">t/ha</span>
           </p>
-          <span className="text-[11px] text-emerald-600 font-semibold mt-1 block">
+          <span className="text-[10px] sm:text-[11px] text-emerald-600 font-semibold mt-1 block">
             {isHindi ? '30 भारतीय राज्यों का औसत' : '30 States Benchmark'}
           </span>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-2xl bg-white/85 backdrop-blur-md border border-slate-200/90 shadow-sm hover:shadow-md transition-all">
+        <div className="p-3.5 sm:p-5 rounded-2xl bg-white/85 backdrop-blur-md border border-slate-200/90 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between text-slate-500 text-xs font-bold uppercase tracking-wider">
             <span>{isHindi ? 'सर्वोच्च उत्पादक राज्य' : 'Top Producer'}</span>
             <Award className="w-4 h-4 text-amber-500" />
           </div>
-          <p className="text-xl sm:text-2xl font-black text-slate-900 mt-2 truncate">
+          <p className="text-lg sm:text-2xl font-black text-slate-900 mt-2 truncate">
             {nationalStats.topState ? (isHindi ? translateState(nationalStats.topState.state) : nationalStats.topState.state) : '—'}
           </p>
-          <span className="text-[11px] text-amber-600 font-semibold mt-1 block">
+          <span className="text-[10px] sm:text-[11px] text-amber-600 font-semibold mt-1 block truncate">
             {nationalStats.topState?.average_yield} t/ha • {nationalStats.topState ? (isHindi ? translateCrop(nationalStats.topState.topCrop) : nationalStats.topState.top_crop) : ''}
           </span>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-2xl bg-white/85 backdrop-blur-md border border-slate-200/90 shadow-sm hover:shadow-md transition-all">
+        <div className="p-3.5 sm:p-5 rounded-2xl bg-white/85 backdrop-blur-md border border-slate-200/90 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between text-slate-500 text-xs font-bold uppercase tracking-wider">
             <span>{isHindi ? 'सर्वाधिक वर्षा क्षेत्र' : 'Highest Rainfall'}</span>
             <CloudRain className="w-4 h-4 text-blue-500" />
           </div>
-          <p className="text-xl sm:text-2xl font-black text-slate-900 mt-2 truncate">
+          <p className="text-lg sm:text-2xl font-black text-slate-900 mt-2 truncate">
             {nationalStats.topRainState ? (isHindi ? translateState(nationalStats.topRainState.state) : nationalStats.topRainState.state) : '—'}
           </p>
-          <span className="text-[11px] text-blue-600 font-semibold mt-1 block">
+          <span className="text-[10px] sm:text-[11px] text-blue-600 font-semibold mt-1 block">
             {nationalStats.topRainState?.average_rainfall_mm} mm/year
           </span>
         </div>
 
-        <div className="p-4 sm:p-5 rounded-2xl bg-white/85 backdrop-blur-md border border-slate-200/90 shadow-sm hover:shadow-md transition-all">
+        <div className="p-3.5 sm:p-5 rounded-2xl bg-white/85 backdrop-blur-md border border-slate-200/90 shadow-sm hover:shadow-md transition-all">
           <div className="flex items-center justify-between text-slate-500 text-xs font-bold uppercase tracking-wider">
             <span>{isHindi ? 'सत्यापित डेटा' : 'Analyzed Records'}</span>
             <CheckCircle2 className="w-4 h-4 text-teal-600" />
           </div>
-          <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-2">
+          <p className="text-xl sm:text-3xl font-black text-slate-900 mt-2">
             {nationalStats.totalRecords.toLocaleString()}
           </p>
-          <span className="text-[11px] text-teal-600 font-semibold mt-1 block">
+          <span className="text-[10px] sm:text-[11px] text-teal-600 font-semibold mt-1 block">
             {isHindi ? 'भारतीय कृषि डेटासेट रिकॉर्ड्स' : 'Historical Crop Datapoints'}
           </span>
         </div>
       </div>
 
       {/* Tier Filter Pills & Search Bar */}
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white/90 backdrop-blur-md p-4 rounded-3xl border border-slate-200/90 shadow-sm">
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-between bg-white/90 backdrop-blur-md p-3.5 sm:p-4 rounded-3xl border border-slate-200/90 shadow-sm">
         {/* Tier Badges */}
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto pb-1.5 sm:pb-0 scrollbar-none flex-nowrap sm:flex-wrap">
           <button
             onClick={() => setTierFilter('ALL')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex-shrink-0 ${
               tierFilter === 'ALL'
                 ? 'bg-slate-900 text-white shadow'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -253,7 +253,7 @@ const AgriMapPage = () => {
           </button>
           <button
             onClick={() => setTierFilter('High')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 flex-shrink-0 ${
               tierFilter === 'High'
                 ? 'bg-emerald-600 text-white shadow'
                 : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
@@ -264,7 +264,7 @@ const AgriMapPage = () => {
           </button>
           <button
             onClick={() => setTierFilter('Moderate')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 flex-shrink-0 ${
               tierFilter === 'Moderate'
                 ? 'bg-blue-600 text-white shadow'
                 : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
@@ -275,7 +275,7 @@ const AgriMapPage = () => {
           </button>
           <button
             onClick={() => setTierFilter('Rainfed')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 flex-shrink-0 ${
               tierFilter === 'Rainfed'
                 ? 'bg-amber-600 text-white shadow'
                 : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
@@ -328,7 +328,8 @@ const AgriMapPage = () => {
         <div className="lg:col-span-2">
           {/* VIEW 1: Interactive Geospatial India Map Canvas */}
           {viewMode === 'map' && (
-            <div className="relative bg-gradient-to-b from-slate-900 to-slate-950 rounded-3xl p-6 sm:p-8 border border-slate-800 shadow-2xl overflow-hidden min-h-[640px] flex flex-col justify-between">
+            <>
+              <div className="relative bg-gradient-to-b from-slate-900 to-slate-950 rounded-3xl p-4 sm:p-6 lg:p-8 border border-slate-800 shadow-2xl overflow-hidden min-h-[460px] sm:min-h-[580px] lg:min-h-[640px] flex flex-col justify-between">
               {/* Futuristic Cyber Agricultural Grid Lines */}
               <div className="absolute inset-0 bg-[linear-gradient(to_right,#1e293b_1px,transparent_1px),linear-gradient(to_bottom,#1e293b_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_70%,transparent_100%)] opacity-35 pointer-events-none" />
 
@@ -343,7 +344,7 @@ const AgriMapPage = () => {
                     <Sparkles className="w-3.5 h-3.5" />
                     <span>{isHindi ? 'इंटरएक्टिव जियोस्पेशियल कैनवास' : 'Interactive Geospatial Canvas'}</span>
                   </span>
-                  <h3 className="text-lg font-black text-white mt-0.5">
+                  <h3 className="text-base sm:text-lg font-black text-white mt-0.5">
                     {isHindi ? 'भारत का क्षेत्रीय कृषि नोड मानचित्र' : 'Indian Agro-Climatic Node Visualizer'}
                   </h3>
                 </div>
@@ -352,17 +353,16 @@ const AgriMapPage = () => {
                     {isHindi ? 'सक्रिय पैमाना' : 'Active Scale'}
                   </span>
                   <span className="text-xs font-mono font-bold text-emerald-400">
-                    {metricMode === 'yield' ? 'Crop Yield (t/ha)' : 'Annual Rain (mm)'}
+                    {metricMode === 'yield' ? 'Yield (t/ha)' : 'Annual Rain (mm)'}
                   </span>
                 </div>
               </div>
 
               {/* SVG Visual India Map Canvas */}
-              <div className="relative z-10 w-full flex items-center justify-center my-4 overflow-x-auto">
+              <div className="relative z-10 w-full flex items-center justify-center my-2 sm:my-4 overflow-x-auto">
                 <svg
                   viewBox="0 0 760 760"
-                  className="w-full max-w-[620px] h-auto drop-shadow-2xl select-none"
-                  style={{ maxHeight: '560px' }}
+                  className="w-full max-w-[620px] h-auto drop-shadow-2xl select-none max-h-[440px] sm:max-h-[560px]"
                 >
                   <defs>
                     <radialGradient id="highYieldGlow" cx="50%" cy="50%" r="50%">
@@ -440,6 +440,14 @@ const AgriMapPage = () => {
                         onMouseEnter={() => setHoveredState(s)}
                         onMouseLeave={() => setHoveredState(null)}
                       >
+                        {/* Invisible expanded tap target circle for effortless mobile finger tapping */}
+                        <circle
+                          cx={pos.x}
+                          cy={pos.y}
+                          r={Math.max(22, radius + 8)}
+                          fill="transparent"
+                        />
+
                         {/* Pulse Ring for high producing regions */}
                         {isTopYield && (
                           <circle
@@ -546,6 +554,70 @@ const AgriMapPage = () => {
                 </div>
               </div>
             </div>
+
+            {/* Mobile Quick State Summary Card (lg:hidden) */}
+            {selectedState && (
+              <div className="lg:hidden mt-4 p-4 rounded-2xl bg-white/95 backdrop-blur-xl border border-emerald-200 shadow-xl space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                      <MapPin className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-base font-black text-slate-900">
+                        {isHindi ? translateState(selectedState.state) : selectedState.state}
+                      </h4>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                        {selectedState.tier} Zone
+                      </span>
+                    </div>
+                  </div>
+                  <span
+                    className="px-3 py-1 rounded-full text-xs font-black text-white shadow-xs"
+                    style={{
+                      backgroundColor:
+                        selectedState.average_yield >= 6.0
+                          ? '#059669'
+                          : selectedState.average_yield >= 2.5
+                          ? '#0284c7'
+                          : '#d97706'
+                    }}
+                  >
+                    {selectedState.average_yield} t/ha
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-100">
+                    <span className="text-[10px] text-slate-500 block font-medium">{isHindi ? 'प्राथमिक फसल' : 'Leading Crop'}</span>
+                    <span className="font-bold text-emerald-800 text-xs">
+                      {isHindi ? translateCrop(selectedState.top_crop) : selectedState.top_crop}
+                    </span>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-blue-50/70 border border-blue-100">
+                    <span className="text-[10px] text-slate-500 block font-medium">{isHindi ? 'वार्षिक वर्षा' : 'Annual Rain'}</span>
+                    <span className="font-bold text-blue-800 text-xs">{selectedState.average_rainfall_mm} mm</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    onClick={() => handlePredictForState(selectedState.state, selectedState.top_crop)}
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 flex items-center justify-center space-x-1.5"
+                  >
+                    <Sprout className="w-3.5 h-3.5" />
+                    <span>{isHindi ? 'इस राज्य का पूर्वानुमान' : 'Predict For This State'}</span>
+                  </button>
+                  <a
+                    href="#state-details"
+                    className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center justify-center"
+                  >
+                    {isHindi ? 'विस्तृत विवरण' : 'Details'} ↓
+                  </a>
+                </div>
+              </div>
+            )}
+          </>
           )}
 
           {/* VIEW 2: National Leaderboard Rankings View */}
@@ -697,7 +769,7 @@ const AgriMapPage = () => {
 
         {/* Right Column: Selected State Inspector Panel */}
         {selectedState && (
-          <div className="bg-white/95 backdrop-blur-2xl rounded-3xl p-6 sm:p-7 border border-emerald-200/80 shadow-2xl space-y-6 lg:sticky lg:top-24">
+          <div id="state-details" className="bg-white/95 backdrop-blur-2xl rounded-3xl p-4 sm:p-6 lg:p-7 border border-emerald-200/80 shadow-2xl space-y-6 lg:sticky lg:top-24 scroll-mt-24">
             {/* Top State Title with Badge */}
             <div className="flex items-start justify-between pb-4 border-b border-slate-100">
               <div>

@@ -102,7 +102,7 @@ const DashboardPage = () => {
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-teal-400/15 rounded-full blur-3xl pointer-events-none" />
 
         {/* Content Container */}
-        <div className="relative z-10 p-6 sm:p-8 md:p-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+        <div className="relative z-10 p-5 sm:p-8 md:p-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 sm:gap-6">
           <div className="space-y-3 max-w-2xl">
             {/* Top Badges */}
             <div className="flex flex-wrap items-center gap-2">
@@ -120,7 +120,7 @@ const DashboardPage = () => {
               {t('dashboard_title', 'AgriTech Workspace Dashboard')}
             </h1>
 
-            <p className="text-sm sm:text-base text-emerald-100/90 font-normal leading-relaxed">
+            <p className="text-xs sm:text-base text-emerald-100/90 font-normal leading-relaxed">
               {t('welcome_back', 'Welcome back')},{' '}
               <span className="font-bold text-amber-300 bg-amber-400/10 px-2 py-0.5 rounded-lg border border-amber-400/20">
                 {user?.name || (isHindi ? 'किसान' : 'Farmer')}
@@ -130,7 +130,7 @@ const DashboardPage = () => {
           </div>
 
           {/* Quick Actions & Circular Language Switcher */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
             {/* Circular Language Button (Highlighted) */}
             <div className="p-1.5 rounded-full bg-white/20 backdrop-blur-md border border-white/30 shadow-lg flex items-center" title="भाषा बदलें / Toggle Language">
               <LanguageCircleToggle size="normal" />
@@ -139,18 +139,18 @@ const DashboardPage = () => {
             {/* Primary Action Button */}
             <Link
               to="/predict"
-              className="inline-flex items-center px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-sm rounded-2xl shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-105 active:scale-95 transition-all duration-200"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center px-4 sm:px-5 py-2.5 sm:py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 hover:scale-105 active:scale-95 transition-all duration-200"
             >
-              <Sprout className="w-4 h-4 mr-2" />
+              <Sprout className="w-4 h-4 mr-1.5 sm:mr-2" />
               {t('new_prediction', 'New Prediction')}
             </Link>
 
             {/* Secondary Action: Agri Map */}
             <Link
               to="/map"
-              className="inline-flex items-center px-4 py-3 bg-white/15 hover:bg-white/25 text-white font-semibold text-sm rounded-2xl border border-white/30 backdrop-blur-md hover:scale-105 active:scale-95 transition-all duration-200"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3.5 sm:px-4 py-2.5 sm:py-3 bg-white/15 hover:bg-white/25 text-white font-semibold text-xs sm:text-sm rounded-2xl border border-white/30 backdrop-blur-md hover:scale-105 active:scale-95 transition-all duration-200"
             >
-              <Map className="w-4 h-4 mr-2 text-emerald-300" />
+              <Map className="w-4 h-4 mr-1.5 sm:mr-2 text-emerald-300" />
               {t('yield_map', 'Yield Map')}
             </Link>
           </div>
@@ -160,68 +160,68 @@ const DashboardPage = () => {
       {/* ========================================================================= */}
       {/* 2. AGRO-CLIMATIC WEATHER & FARM ADVISORY WIDGET (TRANSLUCENT GLASS)       */}
       {/* ========================================================================= */}
-      <div className="rounded-2xl glass-card-agri p-5 sm:p-6 border border-emerald-200/80 shadow-md">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pb-4 border-b border-emerald-100/80">
+      <div className="rounded-2xl glass-card-agri p-4 sm:p-6 border border-emerald-200/80 shadow-md">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-emerald-100/80">
           <div>
             <div className="flex items-center space-x-2">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-              <h2 className="text-base font-bold text-slate-800">
+              <h2 className="text-sm sm:text-base font-bold text-slate-800">
                 {t('agro_advisory_title', "Today's Agro-Climatic Weather & Field Advisory")}
               </h2>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5">
               {t('agro_advisory_subtitle', 'Live local parameters optimized for Kharif / Rabi cultivation')}
             </p>
           </div>
 
-          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200/60">
+          <span className="text-[11px] sm:text-xs font-semibold px-2.5 sm:px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200/60">
             🌾 {t('active_season_val', 'Kharif / Rabi Transition')}
           </span>
         </div>
 
         {/* 4 Micro Weather & Soil Metrics */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4">
-          <div className="flex items-center space-x-3 p-3 rounded-xl bg-emerald-50/70 border border-emerald-100">
-            <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">
-              <Thermometer className="w-5 h-5" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 pt-4">
+          <div className="flex items-center space-x-2.5 sm:space-x-3 p-2.5 sm:p-3 rounded-xl bg-emerald-50/70 border border-emerald-100">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center flex-shrink-0">
+              <Thermometer className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <p className="text-[11px] font-medium text-slate-500">{t('temp_label', 'Temperature')}</p>
-              <p className="text-sm font-bold text-slate-800">{t('temp_val', '27°C')}</p>
-              <p className="text-[10px] text-emerald-700 truncate">{t('temp_status', 'Optimal growth')}</p>
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-3 p-3 rounded-xl bg-teal-50/70 border border-teal-100">
-            <div className="w-9 h-9 rounded-lg bg-teal-600 text-white flex items-center justify-center flex-shrink-0">
-              <Droplets className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-medium text-slate-500">{t('moisture_label', 'Soil Moisture')}</p>
-              <p className="text-sm font-bold text-slate-800">{t('moisture_val', '64%')}</p>
-              <p className="text-[10px] text-teal-700 truncate">{t('moisture_status', 'Adequate root water')}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 truncate">{t('temp_label', 'Temperature')}</p>
+              <p className="text-xs sm:text-sm font-bold text-slate-800">{t('temp_val', '27°C')}</p>
+              <p className="text-[9px] sm:text-[10px] text-emerald-700 truncate">{t('temp_status', 'Optimal growth')}</p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-3 p-3 rounded-xl bg-sky-50/70 border border-sky-100">
-            <div className="w-9 h-9 rounded-lg bg-sky-600 text-white flex items-center justify-center flex-shrink-0">
-              <CloudSun className="w-5 h-5" />
+          <div className="flex items-center space-x-2.5 sm:space-x-3 p-2.5 sm:p-3 rounded-xl bg-teal-50/70 border border-teal-100">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-teal-600 text-white flex items-center justify-center flex-shrink-0">
+              <Droplets className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <p className="text-[11px] font-medium text-slate-500">{t('rainfall_label', 'Precipitation')}</p>
-              <p className="text-sm font-bold text-slate-800">{t('rainfall_val', '780 mm')}</p>
-              <p className="text-[10px] text-sky-700 truncate">{t('rainfall_status', 'Normal monsoon')}</p>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 truncate">{t('moisture_label', 'Soil Moisture')}</p>
+              <p className="text-xs sm:text-sm font-bold text-slate-800">{t('moisture_val', '64%')}</p>
+              <p className="text-[9px] sm:text-[10px] text-teal-700 truncate">{t('moisture_status', 'Adequate root water')}</p>
             </div>
           </div>
 
-          <div className="flex items-center space-x-3 p-3 rounded-xl bg-amber-50/70 border border-amber-100">
-            <div className="w-9 h-9 rounded-lg bg-amber-600 text-white flex items-center justify-center flex-shrink-0">
-              <Wheat className="w-5 h-5" />
+          <div className="flex items-center space-x-2.5 sm:space-x-3 p-2.5 sm:p-3 rounded-xl bg-sky-50/70 border border-sky-100">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-sky-600 text-white flex items-center justify-center flex-shrink-0">
+              <CloudSun className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <p className="text-[11px] font-medium text-slate-500">{t('active_season_label', 'Current Cycle')}</p>
-              <p className="text-sm font-bold text-slate-800">Kharif / रबी</p>
-              <p className="text-[10px] text-amber-700 truncate">Harvest & Sowing</p>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 truncate">{t('rainfall_label', 'Precipitation')}</p>
+              <p className="text-xs sm:text-sm font-bold text-slate-800">{t('rainfall_val', '780 mm')}</p>
+              <p className="text-[9px] sm:text-[10px] text-sky-700 truncate">{t('rainfall_status', 'Normal monsoon')}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2.5 sm:space-x-3 p-2.5 sm:p-3 rounded-xl bg-amber-50/70 border border-amber-100">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-amber-600 text-white flex items-center justify-center flex-shrink-0">
+              <Wheat className="w-4 h-4 sm:w-5 sm:h-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] sm:text-[11px] font-medium text-slate-500 truncate">{t('active_season_label', 'Current Cycle')}</p>
+              <p className="text-xs sm:text-sm font-bold text-slate-800">Kharif / रबी</p>
+              <p className="text-[9px] sm:text-[10px] text-amber-700 truncate">Harvest & Sowing</p>
             </div>
           </div>
         </div>

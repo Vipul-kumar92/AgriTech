@@ -27,6 +27,8 @@ import AboutPage from './pages/AboutPage';
 import AgriMapPage from './pages/AgriMapPage';
 import SensitivitySimulatorPage from './pages/SensitivitySimulatorPage';
 
+import MobileBottomNav from './components/common/MobileBottomNav';
+
 // Protected Route Guard
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
   const { isAuthenticated, isAdmin, loading } = useAuth();
@@ -82,7 +84,7 @@ const AppLayout = () => {
 
         <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${showSidebar ? 'lg:pl-64' : ''}`}>
           <main className="flex-1">
-            <div className={isAuth ? 'w-full' : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'}>
+            <div className={isAuth ? 'w-full' : 'max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-24 lg:pb-8'}>
               <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<LandingPage />} />
@@ -160,6 +162,9 @@ const AppLayout = () => {
           {!isAuthenticated && !isAuth && <Footer />}
         </div>
       </div>
+
+      {/* Floating Mobile Bottom Navigation for Thumb-Reach Usability */}
+      <MobileBottomNav />
     </div>
   );
 };
