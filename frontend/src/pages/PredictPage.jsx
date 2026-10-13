@@ -25,7 +25,7 @@ import {
 const PredictPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { t, isHindi, translateCrop, translateSeason } = useLanguage();
+  const { t, isHindi, translateCrop, translateSeason, translateState } = useLanguage();
   const [categories, setCategories] = useState({
     crops: [],
     states: [],
@@ -272,41 +272,79 @@ const PredictPage = () => {
             </div>
           </div>
 
-          {/* Live Open-Meteo Meteorological Badge */}
+          {/* Live Open-Meteo Meteorological Snapshot Widget */}
           {liveWeather && (
-            <div className="p-4 rounded-xl bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-emerald-200/80 flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center space-x-3">
-                <div className="w-9 h-9 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-sm">
-                  <CloudSun className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                      Live Meteorological Snapshot ({liveWeather.state})
-                    </span>
-                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1 animate-ping" />
-                      {liveWeather.is_live ? 'Open-Meteo Live' : 'IMD Climate'}
-                    </span>
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-br from-emerald-50/90 via-teal-50/70 to-blue-50/80 border border-emerald-200/90 shadow-sm space-y-3">
+              {/* Header: Icon, State Title, Status Pill */}
+              <div className="flex items-start justify-between gap-2.5">
+                <div className="flex items-center space-x-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 text-white flex items-center justify-center shadow-md shadow-emerald-600/20 flex-shrink-0">
+                    <CloudSun className="w-5 h-5 flex-shrink-0" />
                   </div>
-                  <p className="text-xs text-slate-600 mt-0.5">
-                    {liveWeather.weather_description} • Recorded via Open-Meteo Geospatial Coordinates
-                  </p>
+                  <div className="min-w-0">
+                    <div className="flex items-center space-x-2 flex-wrap">
+                      <h4 className="text-xs sm:text-sm font-black text-slate-900 tracking-tight">
+                        {isHindi ? 'लाइव मौसम विवरण' : 'Live Meteorological Snapshot'}
+                        <span className="text-emerald-700 ml-1">({isHindi ? translateState(liveWeather.state) : liveWeather.state})</span>
+                      </h4>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                      {liveWeather.weather_description || 'Clear sky'} • {isHindi ? 'ओपन-मेटियो उपग्रह डेटा' : 'Recorded via Open-Meteo Geospatial Coordinates'}
+                    </p>
+                  </div>
                 </div>
+
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 whitespace-nowrap flex-shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5 animate-ping" />
+                  {liveWeather.is_live ? 'Open-Meteo Live' : 'IMD Climate'}
+                </span>
               </div>
 
-              <div className="flex items-center space-x-4 text-xs font-medium text-slate-700">
-                <div className="flex items-center space-x-1">
-                  <Thermometer className="w-4 h-4 text-amber-500" />
-                  <span className="font-bold">{liveWeather.temperature_c}°C</span>
+              {/* 3 Dedicated Structured Metric Tiles (Grid 3 cols) */}
+              <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-2.5 border-t border-emerald-100/90">
+                {/* Metric 1: Temperature */}
+                <div className="p-2 sm:p-2.5 rounded-xl bg-white/90 border border-amber-200/60 shadow-xs flex items-center space-x-2 sm:space-x-2.5">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-500/15 text-amber-600 flex items-center justify-center flex-shrink-0">
+                    <Thermometer className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400 block truncate">
+                      {isHindi ? 'तापमान' : 'Temp'}
+                    </span>
+                    <span className="text-xs sm:text-sm font-black text-slate-900">
+                      {liveWeather.temperature_c}°C
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <Droplets className="w-4 h-4 text-blue-500" />
-                  <span>Humidity: <strong className="text-slate-900">{liveWeather.relative_humidity_pct}%</strong></span>
+
+                {/* Metric 2: Humidity */}
+                <div className="p-2 sm:p-2.5 rounded-xl bg-white/90 border border-blue-200/60 shadow-xs flex items-center space-x-2 sm:space-x-2.5">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-blue-500/15 text-blue-600 flex items-center justify-center flex-shrink-0">
+                    <Droplets className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400 block truncate">
+                      {isHindi ? 'आर्द्रता' : 'Humidity'}
+                    </span>
+                    <span className="text-xs sm:text-sm font-black text-slate-900">
+                      {liveWeather.relative_humidity_pct}%
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center space-x-1">
-                  <CloudRain className="w-4 h-4 text-teal-600" />
-                  <span>IMD Benchmark: <strong className="text-slate-900">{liveWeather.annual_rainfall_benchmark_mm} mm</strong></span>
+
+                {/* Metric 3: IMD Rainfall Benchmark */}
+                <div className="p-2 sm:p-2.5 rounded-xl bg-white/90 border border-teal-200/60 shadow-xs flex items-center space-x-2 sm:space-x-2.5">
+                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-teal-500/15 text-teal-600 flex items-center justify-center flex-shrink-0">
+                    <CloudRain className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400 block truncate">
+                      {isHindi ? 'आईएमडी वर्षा' : 'Rain Benchmark'}
+                    </span>
+                    <span className="text-xs sm:text-sm font-black text-slate-900 truncate block">
+                      {liveWeather.annual_rainfall_benchmark_mm} mm
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
