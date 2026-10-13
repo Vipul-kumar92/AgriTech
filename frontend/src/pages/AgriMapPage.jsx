@@ -359,7 +359,7 @@ const AgriMapPage = () => {
               </div>
 
               {/* SVG Visual India Map Canvas */}
-              <div className="relative z-10 w-full flex items-center justify-center my-2 sm:my-4 overflow-x-auto">
+              <div className="relative z-10 w-full flex items-center justify-center my-2 sm:my-4 overflow-x-auto scrollbar-none">
                 <svg
                   viewBox="0 0 760 760"
                   className="w-full max-w-[620px] h-auto drop-shadow-2xl select-none max-h-[440px] sm:max-h-[560px]"

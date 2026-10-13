@@ -36,9 +36,6 @@ const Navbar = ({ onToggleSidebar }) => {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-40 w-full bg-gradient-to-r from-emerald-100/90 via-emerald-50/95 to-teal-100/90 backdrop-blur-xl border-b border-emerald-200/80 shadow-sm shadow-emerald-950/5">
-      {/* Top micro decorative glowing line */}
-      <div className="h-[2.5px] w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-400" />
-
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* ===================================================================== */}
         {/* LOGO & BRAND                                                          */}

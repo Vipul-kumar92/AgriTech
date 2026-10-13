@@ -8,9 +8,6 @@ const Footer = () => {
 
   return (
     <footer className="relative mt-auto w-full bg-gradient-to-r from-emerald-100/90 via-emerald-50/95 to-teal-100/90 backdrop-blur-xl border-t border-emerald-200/80 shadow-sm shadow-emerald-950/5">
-      {/* Top micro decorative glowing line - exact match to Header */}
-      <div className="h-[2.5px] w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-400" />
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10 space-y-6">
         {/* Main Grid: Brand + Quick Links */}
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
