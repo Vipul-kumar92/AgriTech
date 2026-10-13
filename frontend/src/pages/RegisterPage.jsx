@@ -75,6 +75,52 @@ const RegisterPage = () => {
     }
   };
 
+  const handleGoogleSignUp = () => {
+    setError('');
+    if (window.google?.accounts?.oauth2 && googleClientId.trim()) {
+      try {
+        const client = window.google.accounts.oauth2.initTokenClient({
+          client_id: googleClientId.trim(),
+          scope: 'email profile openid',
+          callback: async (tokenResponse) => {
+            if (tokenResponse?.error) {
+              console.warn('Google auth response error:', tokenResponse);
+              return;
+            }
+            if (tokenResponse?.access_token) {
+              try {
+                setLoading(true);
+                const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                  headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                });
+                const profile = await res.json();
+                await loginWithGoogle({
+                  email: profile.email,
+                  name: profile.name,
+                  picture: profile.picture,
+                  role: role,
+                });
+                navigate('/dashboard');
+              } catch (err) {
+                setError(
+                  err.response?.data?.detail || 
+                  (isHindi ? 'Google प्रमाणीकरण विफल रहा' : 'Google authentication failed')
+                );
+              } finally {
+                setLoading(false);
+              }
+            }
+          },
+        });
+        client.requestAccessToken({ prompt: 'select_account' });
+        return;
+      } catch (err) {
+        console.warn('Google OAuth tokenClient error:', err);
+      }
+    }
+    setIsGoogleModalOpen(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -130,27 +176,14 @@ const RegisterPage = () => {
 
         {/* Google Authentication Button */}
         <div>
-          {googleClientId ? (
-            <div className="w-full flex flex-col items-center justify-center space-y-1.5">
-              <div ref={googleButtonRef} className="w-full flex justify-center min-h-[44px]" />
-              <button
-                type="button"
-                onClick={() => setIsGoogleModalOpen(true)}
-                className="text-[11px] text-slate-400 hover:text-emerald-600 transition-colors underline"
-              >
-                {isHindi ? 'Google Client ID बदलें' : 'Settings / Change Client ID'}
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setIsGoogleModalOpen(true)}
-              className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-300 hover:border-emerald-500 text-slate-700 font-bold text-sm rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center space-x-3 group"
-            >
-              <GoogleIcon className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" />
-              <span>{isHindi ? 'Google से खाता बनाएं' : 'Sign up with Google'}</span>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleGoogleSignUp}
+            className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 border border-slate-300 hover:border-emerald-500 text-slate-700 font-bold text-sm rounded-xl shadow-sm hover:shadow transition-all flex items-center justify-center space-x-3 group"
+          >
+            <GoogleIcon className="w-5 h-5 flex-shrink-0 group-hover:scale-110 transition-transform" />
+            <span>{isHindi ? 'Google से खाता बनाएं' : 'Sign up with Google'}</span>
+          </button>
 
           {/* Clean 'or' text on same page */}
           <div className="text-center my-3.5">
