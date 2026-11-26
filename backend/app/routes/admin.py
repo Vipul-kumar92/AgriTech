@@ -65,7 +65,7 @@ async def list_registered_users(
             "id": str(u["_id"]),
             "name": u.get("name", "Unknown"),
             "email": u.get("email", ""),
-            "role": u.get("role", "USER"),
+            "role": u.get("role", "FARMER"),
             "created_at": u.get("created_at").isoformat() if u.get("created_at") else ""
         })
 

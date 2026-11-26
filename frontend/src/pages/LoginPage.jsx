@@ -3,8 +3,9 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import GoogleAuthModal, { GoogleIcon } from '../components/auth/GoogleAuthModal';
+import { BrandMark } from '../components/common/BrandLogo';
 import { decodeJwt } from '../utils/jwt';
-import { Sprout, LogIn, Lock, Mail, AlertCircle, Shield, User, ArrowRight } from 'lucide-react';
+import { LogIn, Lock, Mail, AlertCircle, Shield, User, ArrowRight } from 'lucide-react';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -147,11 +148,11 @@ const LoginPage = () => {
       <div className="relative z-10 max-w-md w-full space-y-6 sm:space-y-7 bg-white/90 dark:bg-slate-900/90 backdrop-blur-2xl p-5 sm:p-8 md:p-10 rounded-3xl border border-white/60 shadow-2xl shadow-emerald-950/50">
         
         <div className="text-center">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white mx-auto shadow-lg shadow-emerald-600/30">
-            <Sprout className="w-7 h-7 sm:w-8 sm:h-8" />
+          <div className="flex justify-center">
+            <BrandMark className="w-12 h-12 sm:w-14 sm:h-14" />
           </div>
           <h2 className="mt-3.5 text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            {isHindi ? 'लॉग इन करें' : 'Sign In to AgriYield'}
+            {isHindi ? 'KrishiPulse.AI में लॉग इन करें' : 'Sign In to KrishiPulse.AI'}
           </h2>
           <p className="mt-1 text-xs sm:text-sm text-slate-500">
             {isHindi ? 'अपने कृषि कार्यक्षेत्र और पूर्वानुमान डेटा तक पहुंचें' : 'Access your agricultural workspace & predictions'}

@@ -184,8 +184,12 @@ def test_next_level_services():
         assert res_s.status_code == 200
         data_s = res_s.json()
         assert data_s["base_yield_t_ha"] > 0
+        assert "base_economics" in data_s
+        assert data_s["base_economics"]["gross_revenue_inr"] > 0
         assert len(data_s["rainfall_sensitivity_curve"]) == 9
+        assert "net_farm_return_lakhs" in data_s["rainfall_sensitivity_curve"][0]
         assert len(data_s["fertilizer_sensitivity_curve"]) == 9
+        assert "net_farm_return_lakhs" in data_s["fertilizer_sensitivity_curve"][0]
 
 def test_google_authentication_endpoint():
     """Verify Google OAuth endpoint registers/authenticates users with real Gmail format."""

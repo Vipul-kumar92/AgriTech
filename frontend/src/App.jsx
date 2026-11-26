@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -7,25 +7,25 @@ import Sidebar from './components/common/Sidebar';
 import Footer from './components/common/Footer';
 import { LoadingSpinner } from './components/common/StatCard';
 
-// Pages
-import LandingPage from './pages/LandingPage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import DashboardPage from './pages/DashboardPage';
-import PredictPage from './pages/PredictPage';
-import PredictionResultPage from './pages/PredictionResultPage';
-import PredictionHistoryPage from './pages/PredictionHistoryPage';
-import AnalyticsPage from './pages/AnalyticsPage';
-import DatasetInsightsPage from './pages/DatasetInsightsPage';
-import ModelPerformancePage from './pages/ModelPerformancePage';
-import FeatureImportancePage from './pages/FeatureImportancePage';
-import ProfilePage from './pages/ProfilePage';
-import AdminDashboardPage from './pages/AdminDashboardPage';
-import AdminUsersPage from './pages/AdminUsersPage';
-import AdminPredictionsPage from './pages/AdminPredictionsPage';
-import AboutPage from './pages/AboutPage';
-import AgriMapPage from './pages/AgriMapPage';
-import SensitivitySimulatorPage from './pages/SensitivitySimulatorPage';
+// Lazy-loaded Pages for smaller initial bundle
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const RegisterPage = lazy(() => import('./pages/RegisterPage'));
+const DashboardPage = lazy(() => import('./pages/DashboardPage'));
+const PredictPage = lazy(() => import('./pages/PredictPage'));
+const PredictionResultPage = lazy(() => import('./pages/PredictionResultPage'));
+const PredictionHistoryPage = lazy(() => import('./pages/PredictionHistoryPage'));
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
+const DatasetInsightsPage = lazy(() => import('./pages/DatasetInsightsPage'));
+const ModelPerformancePage = lazy(() => import('./pages/ModelPerformancePage'));
+const FeatureImportancePage = lazy(() => import('./pages/FeatureImportancePage'));
+const ProfilePage = lazy(() => import('./pages/ProfilePage'));
+const AdminDashboardPage = lazy(() => import('./pages/AdminDashboardPage'));
+const AdminUsersPage = lazy(() => import('./pages/AdminUsersPage'));
+const AdminPredictionsPage = lazy(() => import('./pages/AdminPredictionsPage'));
+const AboutPage = lazy(() => import('./pages/AboutPage'));
+const AgriMapPage = lazy(() => import('./pages/AgriMapPage'));
+const SensitivitySimulatorPage = lazy(() => import('./pages/SensitivitySimulatorPage'));
 
 import MobileBottomNav from './components/common/MobileBottomNav';
 
@@ -64,7 +64,7 @@ const AppLayout = () => {
     <div className="min-h-screen flex flex-col relative overflow-x-hidden">
       {/* FULL-PAGE FIXED TRANSPARENT AGRICULTURE BACKGROUND PHOTO */}
       <div
-        className="fixed inset-0 bg-cover bg-center -z-50 pointer-events-none scale-105 transition-all duration-700"
+        className="fixed inset-0 bg-cover bg-center -z-50 pointer-events-none transform-gpu"
         style={{ backgroundImage: `url('/agri_hero_banner.jpg')` }}
       />
 
@@ -85,7 +85,8 @@ const AppLayout = () => {
         <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300 ${showSidebar ? 'lg:pl-64' : ''}`}>
           <main className="flex-1">
             <div className={isAuth ? 'w-full' : 'max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8 pb-24 lg:pb-8'}>
-              <Routes>
+              <Suspense fallback={<LoadingSpinner message="Loading workspace..." />}>
+                <Routes>
                 {/* Public Routes */}
                 <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
@@ -155,6 +156,7 @@ const AppLayout = () => {
                 {/* Fallback */}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
+              </Suspense>
             </div>
           </main>
 

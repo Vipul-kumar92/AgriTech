@@ -1,0 +1,12 @@
+.git
+.gitignore
+.env
+*.zip
+*.log
+__pycache__/
+*.py[cod]
+.pytest_cache/
+frontend/node_modules/
+frontend/dist/
+ml/visualization/*.png
+AgriTech_Project.zip

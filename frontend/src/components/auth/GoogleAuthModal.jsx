@@ -180,14 +180,20 @@ const GoogleAuthModal = ({ isOpen, onClose, onClientIdUpdated }) => {
     setSavedClientIdSuccess(true);
     if (onClientIdUpdated) onClientIdUpdated(cleanId);
 
-    try {
-      await fetch('/api/auth/google-client-id', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ client_id: cleanId }),
-      });
-    } catch (err) {
-      console.warn('Backend client_id persistence note:', err);
+    const authToken = localStorage.getItem('agritech_token');
+    if (authToken) {
+      try {
+        await fetch('/api/auth/google-client-id', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${authToken}`,
+          },
+          body: JSON.stringify({ client_id: cleanId }),
+        });
+      } catch (err) {
+        console.warn('Backend client_id persistence note:', err);
+      }
     }
 
     setTimeout(() => {

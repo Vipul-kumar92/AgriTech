@@ -120,11 +120,16 @@ def run_what_if_simulation(
             'Pesticide_per_Ha': pest_per_ha,
             'Crop_Year': crop_year
         }])
-        pred_y = float(engine.pipeline.predict(df_row)[0])
+        pred_y = round(max(0.01, float(engine.pipeline.predict(df_row)[0])), 2)
+        econ = calculate_farm_economics(crop, area_ha, pred_y, base_fertilizer_kg, base_pesticide_kg)
         rainfall_scenarios.append({
             "scenario": f"{rf_pct:+d}% Rain",
             "rainfall_mm": round(simulated_rainfall, 1),
-            "predicted_yield_t_ha": round(max(0.01, pred_y), 2)
+            "predicted_yield_t_ha": pred_y,
+            "gross_revenue_inr": econ["gross_revenue_inr"],
+            "total_chemical_cost_inr": econ["total_chemical_cost_inr"],
+            "net_farm_return_inr": econ["net_farm_return_inr"],
+            "net_farm_return_lakhs": econ["estimated_net_return_lakhs"],
         })
 
     # 2. Fertilizer Intensity Grid (50 kg/ha to 250 kg/ha in 25 kg/ha steps)
@@ -141,17 +146,27 @@ def run_what_if_simulation(
             'Pesticide_per_Ha': pest_per_ha,
             'Crop_Year': crop_year
         }])
-        pred_y = float(engine.pipeline.predict(df_row)[0])
+        pred_y = round(max(0.01, float(engine.pipeline.predict(df_row)[0])), 2)
+        total_fert_kg = float(f_step) * area_ha
+        econ = calculate_farm_economics(crop, area_ha, pred_y, total_fert_kg, base_pesticide_kg)
         fertilizer_scenarios.append({
             "fertilizer_intensity_kg_ha": f_step,
-            "predicted_yield_t_ha": round(max(0.01, pred_y), 2)
+            "predicted_yield_t_ha": pred_y,
+            "gross_revenue_inr": econ["gross_revenue_inr"],
+            "total_chemical_cost_inr": econ["total_chemical_cost_inr"],
+            "net_farm_return_inr": econ["net_farm_return_inr"],
+            "net_farm_return_lakhs": econ["estimated_net_return_lakhs"],
         })
+
+    base_yield = rainfall_scenarios[4]["predicted_yield_t_ha"]  # at 0% change
+    base_economics = calculate_farm_economics(crop, area_ha, base_yield, base_fertilizer_kg, base_pesticide_kg)
 
     return {
         "crop": crop,
         "state": state,
         "season": season,
-        "base_yield_t_ha": rainfall_scenarios[4]["predicted_yield_t_ha"],  # at 0% change
+        "base_yield_t_ha": base_yield,
+        "base_economics": base_economics,
         "rainfall_sensitivity_curve": rainfall_scenarios,
         "fertilizer_sensitivity_curve": fertilizer_scenarios
     }

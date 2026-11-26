@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../../context/LanguageContext';
-import { Sprout, ExternalLink, ShieldCheck, Cpu, Database, MapPin, Sparkles } from 'lucide-react';
+import BrandLogo from './BrandLogo';
+import { ExternalLink, ShieldCheck, Cpu, Database, MapPin, Sparkles } from 'lucide-react';
 
 const Footer = () => {
   const { t, isHindi } = useLanguage();
@@ -13,23 +14,13 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
           {/* Brand Column */}
           <div className="md:col-span-6 space-y-3 text-left">
-            <Link to="/" className="inline-flex items-center space-x-3 group flex-shrink-0">
-              <div className="relative">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 flex items-center justify-center shadow-md shadow-emerald-600/25 ring-2 ring-emerald-400/40 group-hover:scale-105 group-hover:rotate-3 transition-all duration-300">
-                  <Sprout className="w-5 h-5 text-white" />
-                </div>
-                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-amber-400 border-2 border-white rounded-full"></span>
-              </div>
-              <div className="flex flex-col text-left">
-                <span className="text-xl font-black tracking-tight leading-none text-slate-900 group-hover:text-emerald-700 transition-colors">
-                  Agri<span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Yield</span>
-                  <span className="text-amber-500 font-extrabold">.AI</span>
-                </span>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-700/90 mt-0.5">
-                  {isHindi ? 'सटीक स्मार्ट कृषि बुद्धिमत्ता' : 'Precision Agricultural Intelligence'}
-                </span>
-              </div>
-            </Link>
+            <BrandLogo
+              to="/"
+              subtitle={isHindi ? 'सटीक स्मार्ट कृषि बुद्धिमत्ता' : 'Precision Agricultural Intelligence'}
+              showSubtitleOnMobile={true}
+              markSize="w-10 h-10"
+              textSize="text-xl"
+            />
 
             <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed max-w-lg">
               {t(
@@ -120,7 +111,7 @@ const Footer = () => {
         {/* Bottom Bar: Copyright & Badge */}
         <div className="border-t border-emerald-200/80 pt-5 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-600 gap-3">
           <p className="font-semibold text-slate-700">
-            {t('footer_bottom_rights', '© 2026 AgriYield.AI. All Rights Reserved.')}
+            {t('footer_bottom_rights', '© 2026 KrishiPulse.AI. All Rights Reserved.')}
           </p>
 
           <p className="flex items-center text-emerald-800 font-bold">

@@ -260,7 +260,7 @@ const PredictionResultPage = () => {
 
       {/* Official Certificate Header (Visible in Print Only) */}
       <div className="hidden print:block text-center border-b-2 border-emerald-800 pb-6 mb-6">
-        <h1 className="text-2xl font-black text-slate-900 tracking-tight">AGRIYIELD.AI — NATIONAL CROP ADVISORY CERTIFICATE</h1>
+        <h1 className="text-2xl font-black text-slate-900 tracking-tight">KRISHIPULSE.AI — NATIONAL CROP ADVISORY CERTIFICATE</h1>
         <p className="text-xs text-slate-600 mt-1">Empirical Machine Learning Agro-Ecological Yield & Economic Assessment</p>
         <div className="flex justify-between items-center text-[10px] text-slate-500 mt-4 border-t border-slate-200 pt-2">
           <span>Certificate Ref ID: #{prediction.prediction_id}</span>

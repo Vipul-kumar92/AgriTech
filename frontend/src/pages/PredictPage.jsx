@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import api from '../services/api';
 import { LoadingSpinner } from '../components/common/StatCard';
+import { parseAgriVoiceTranscript } from '../utils/voiceParser';
 import {
   Sprout,
   MapPin,
@@ -19,7 +20,9 @@ import {
   Droplets,
   Sparkles,
   RefreshCw,
-  Compass
+  Compass,
+  Mic,
+  MicOff
 } from 'lucide-react';
 
 const PredictPage = () => {
@@ -52,6 +55,10 @@ const PredictPage = () => {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [isListening, setIsListening] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [voiceStatus, setVoiceStatus] = useState('');
+  const recognitionRef = useRef(null);
 
   // Fetch live meteorological parameters for a state
   const fetchLiveWeather = async (targetState) => {
@@ -149,6 +156,82 @@ const PredictPage = () => {
     }
   };
 
+  const handleVoiceInput = () => {
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setVoiceStatus(
+        isHindi
+          ? 'इस ब्राउज़र में वॉयस इनपुट समर्थित नहीं है (Chrome या Edge का उपयोग करें)।'
+          : 'Voice input is not supported in this browser (try Chrome or Edge).'
+      );
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+    recognition.lang = isHindi ? 'hi-IN' : 'en-IN';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    setIsListening(true);
+    setVoiceStatus(isHindi ? 'सुन रहा हूँ... फसल, राज्य, मौसम या क्षेत्रफल बोलें' : 'Listening... speak crop, state, season, or area');
+
+    recognition.onresult = (event) => {
+      const transcript = event.results?.[0]?.[0]?.transcript || '';
+      setVoiceTranscript(transcript);
+      const { updates, matchedFields } = parseAgriVoiceTranscript(transcript, categories);
+
+      if (Object.keys(updates).length > 0) {
+        setFormData((prev) => ({ ...prev, ...updates }));
+        if (updates.state) {
+          fetchLiveWeather(updates.state);
+        }
+        setVoiceStatus(
+          isHindi
+            ? `लागू किया गया: ${matchedFields.join(', ')}`
+            : `Applied from voice: ${matchedFields.join(', ')}`
+        );
+      } else {
+        setVoiceStatus(
+          isHindi
+            ? 'कोई ज्ञात फ़ील्ड नहीं मिला — उदाहरण: "50 हेक्टेयर चावल पंजाब खरीफ"'
+            : 'No known parameters matched — try e.g. "50 hectare Rice Punjab Kharif"'
+        );
+      }
+    };
+
+    recognition.onerror = () => {
+      setVoiceStatus(isHindi ? 'माइक्रोफ़ोन त्रुटि या अनुमति अस्वीकृत' : 'Microphone error or permission denied');
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognition.start();
+  };
+
+  // Auto-trigger voice listening if navigated from Dashboard "Voice Predict"
+  useEffect(() => {
+    if (!loadingMetadata && location.state?.startVoice) {
+      handleVoiceInput();
+      window.history.replaceState({}, document.title);
+    }
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, [loadingMetadata]);
+
   if (loadingMetadata) {
     return <LoadingSpinner message="Loading agricultural categories and regional parameters..." />;
   }
@@ -181,6 +264,37 @@ const PredictPage = () => {
           {error}
         </div>
       )}
+
+      {/* Voice Query Input Assistant */}
+      <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="space-y-0.5">
+          <div className="flex items-center space-x-2 text-xs font-bold text-emerald-900">
+            <Mic className="w-4 h-4 text-emerald-600" />
+            <span>{isHindi ? 'वॉयस-आधारित फ़ॉर्म इनपुट (Voice Query)' : 'Voice-Assisted Parameter Input'}</span>
+          </div>
+          <p className="text-[11px] text-emerald-800/80">
+            {voiceStatus ||
+              (isHindi
+                ? 'उदाहरण बोलें: "50 hectare Rice Punjab Kharif"'
+                : 'Try speaking: "50 hectare Rice Punjab Kharif 1100 mm"')}
+          </p>
+          {voiceTranscript && (
+            <p className="text-[11px] text-slate-600 italic">“{voiceTranscript}”</p>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={handleVoiceInput}
+          className={`inline-flex items-center justify-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors flex-shrink-0 ${
+            isListening
+              ? 'bg-red-600 hover:bg-red-700 text-white'
+              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+          }`}
+        >
+          {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+          <span>{isListening ? (isHindi ? 'रोकें (सुन रहा है)' : 'Stop Listening') : (isHindi ? 'बोलकर भरें' : 'Speak Inputs')}</span>
+        </button>
+      </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Section 1: Crop & Regional Location */}

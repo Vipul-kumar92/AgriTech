@@ -29,7 +29,9 @@ start_time = time.time()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup Sequence
-    logger.info("Initializing AI-Based Crop Yield Prediction System Backend...")
+    logger.info(f"Initializing AI-Based Crop Yield Prediction System Backend (env={settings.ENVIRONMENT})...")
+    if settings.ENVIRONMENT == "production" and "super_secret_agritech_jwt_key" in settings.JWT_SECRET_KEY:
+        logger.warning("SECURITY WARNING: Default JWT_SECRET_KEY is in use in production! Override via environment variable.")
     await connect_to_mongo()
     
     # Pre-load ML Engine
@@ -55,8 +57,8 @@ app = FastAPI(
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins during development
-    allow_credentials=True,
+    allow_origins=settings.CORS_ORIGINS,
+    allow_credentials="*" not in settings.CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )

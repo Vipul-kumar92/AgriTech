@@ -21,11 +21,11 @@ const LanguageCircleToggle = ({ size = 'normal', showLabel = false, className = 
         onClick={toggleLanguage}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className={`group relative ${sizeClasses} rounded-full flex items-center justify-center
-          bg-white/90 dark:bg-emerald-950/80 backdrop-blur-md
-          border-2 ${isHindi ? 'border-amber-500 shadow-amber-500/25' : 'border-emerald-500 shadow-emerald-500/25'}
-          shadow-lg hover:shadow-xl hover:scale-105 active:scale-95
-          transition-all duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-emerald-400/50`}
+        className={`group relative ${sizeClasses} rounded-full flex items-center justify-center flex-shrink-0
+          bg-white/95 dark:bg-emerald-950/80
+          border-2 ${isHindi ? 'border-amber-500 shadow-amber-500/20' : 'border-emerald-500 shadow-emerald-500/20'}
+          shadow-md hover:shadow-lg active:opacity-90
+          transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-emerald-400/50`}
         aria-label={isHindi ? 'Switch to English' : 'Switch to Hindi'}
         title={isHindi ? 'अंग्रेज़ी में बदलें / Switch to English' : 'हिंदी में बदलें / Switch to Hindi'}
       >
@@ -63,14 +63,14 @@ const LanguageCircleToggle = ({ size = 'normal', showLabel = false, className = 
         <span
           className={`absolute top-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white ${
             isHindi ? 'bg-amber-500' : 'bg-emerald-500'
-          } animate-pulse`}
+          }`}
         />
       </button>
 
       {/* Floating tooltip on hover */}
       {isHovered && (
         <div className="absolute top-full mt-2 left-1/2 -translate-x-1/2 z-50 pointer-events-none whitespace-nowrap">
-          <div className="bg-slate-900/95 text-white text-[11px] font-medium py-1.5 px-3 rounded-lg shadow-xl backdrop-blur-md border border-slate-700/80 flex items-center space-x-1.5 animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-slate-900/95 text-white text-[11px] font-medium py-1.5 px-3 rounded-lg shadow-xl border border-slate-700/80 flex items-center space-x-1.5">
             <Languages className="w-3.5 h-3.5 text-emerald-400" />
             <span>
               {isHindi ? 'Switch to English' : 'हिंदी में बदलें'}

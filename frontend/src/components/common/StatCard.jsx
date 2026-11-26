@@ -3,46 +3,57 @@ import React from 'react';
 export const StatCard = ({ title, value, unit, subtitle, icon: Icon, color = 'emerald', trend }) => {
   const colorMap = {
     emerald: {
-      bg: 'bg-emerald-50/90 text-emerald-700 border-emerald-200/80 shadow-emerald-500/10',
-      glow: 'from-emerald-500/10 to-teal-500/5',
-      badge: 'bg-emerald-100 text-emerald-800'
+      iconBg: 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-emerald-500/25',
+      topBar: 'from-emerald-400 via-teal-500 to-emerald-600',
+      glow: 'from-emerald-500/15 to-teal-500/5',
+      unitText: 'text-emerald-700 bg-emerald-50 border-emerald-200/70'
     },
     amber: {
-      bg: 'bg-amber-50/90 text-amber-700 border-amber-200/80 shadow-amber-500/10',
-      glow: 'from-amber-500/10 to-orange-500/5',
-      badge: 'bg-amber-100 text-amber-800'
+      iconBg: 'bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-amber-500/25',
+      topBar: 'from-amber-400 via-orange-500 to-amber-600',
+      glow: 'from-amber-500/15 to-orange-500/5',
+      unitText: 'text-amber-700 bg-amber-50 border-amber-200/70'
     },
     blue: {
-      bg: 'bg-sky-50/90 text-sky-700 border-sky-200/80 shadow-sky-500/10',
-      glow: 'from-sky-500/10 to-blue-500/5',
-      badge: 'bg-sky-100 text-sky-800'
+      iconBg: 'bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-sky-500/25',
+      topBar: 'from-sky-400 via-blue-500 to-indigo-600',
+      glow: 'from-sky-500/15 to-blue-500/5',
+      unitText: 'text-sky-700 bg-sky-50 border-sky-200/70'
     },
     purple: {
-      bg: 'bg-purple-50/90 text-purple-700 border-purple-200/80 shadow-purple-500/10',
-      glow: 'from-purple-500/10 to-indigo-500/5',
-      badge: 'bg-purple-100 text-purple-800'
+      iconBg: 'bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-violet-500/25',
+      topBar: 'from-violet-400 via-purple-500 to-indigo-600',
+      glow: 'from-violet-500/15 to-purple-500/5',
+      unitText: 'text-purple-700 bg-purple-50 border-purple-200/70'
     },
   };
 
   const scheme = colorMap[color] || colorMap.emerald;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl glass-card-agri p-6 transition-all duration-300">
+    <div className="group relative overflow-hidden rounded-2xl glass-card-agri ring-1 ring-white/70 p-6 transition-all duration-300">
+      {/* Subtle top gradient accent */}
+      <div className={`absolute top-0 inset-x-0 h-1 bg-gradient-to-r ${scheme.topBar} opacity-80`} />
+
       {/* Soft gradient background glow */}
-      <div className={`absolute -right-6 -bottom-6 w-28 h-28 rounded-full bg-gradient-to-br ${scheme.glow} blur-2xl pointer-events-none`} />
+      <div className={`absolute -right-8 -bottom-8 w-32 h-32 rounded-full bg-gradient-to-br ${scheme.glow} blur-2xl pointer-events-none group-hover:scale-125 transition-transform duration-500`} />
 
       <div className="relative z-10 flex items-start justify-between">
         <div className="space-y-1.5 flex-1 pr-2">
           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500">{title}</p>
-          <div className="flex items-baseline space-x-1.5">
-            <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">{value}</span>
-            {unit && <span className="text-xs font-semibold text-emerald-700">{unit}</span>}
+          <div className="flex items-baseline flex-wrap gap-1.5">
+            <span className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight tabular-nums">{value}</span>
+            {unit && (
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full border ${scheme.unitText}`}>
+                {unit}
+              </span>
+            )}
           </div>
           {subtitle && <p className="text-xs text-slate-500 line-clamp-1">{subtitle}</p>}
         </div>
 
         {Icon && (
-          <div className={`w-12 h-12 rounded-xl flex items-center justify-center border shadow-sm ${scheme.bg} flex-shrink-0`}>
+          <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg ${scheme.iconBg} flex-shrink-0 group-hover:scale-105 transition-transform duration-300`}>
             <Icon className="w-6 h-6" />
           </div>
         )}

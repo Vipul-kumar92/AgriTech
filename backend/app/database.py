@@ -20,7 +20,11 @@ db_instance = MongoDB()
 async def connect_to_mongo():
     """Establish async connection to MongoDB and ensure essential indexes and seed users."""
     logger.info(f"Connecting to MongoDB at {settings.MONGODB_URL}...")
-    db_instance.client = AsyncIOMotorClient(settings.MONGODB_URL)
+    db_instance.client = AsyncIOMotorClient(
+        settings.MONGODB_URL,
+        serverSelectionTimeoutMS=settings.MONGO_SERVER_SELECTION_TIMEOUT_MS,
+        connectTimeoutMS=settings.MONGO_SERVER_SELECTION_TIMEOUT_MS,
+    )
     db_instance.db = db_instance.client[settings.DATABASE_NAME]
     
     # Initialize Collections & Indexes
@@ -50,10 +54,15 @@ async def connect_to_mongo():
             "name": "Vipul Farmer",
             "email": "farmer@agritech.com",
             "password_hash": hash_password("Farmer@12345"),
-            "role": "USER",
+            "role": "FARMER",
             "created_at": datetime.now(timezone.utc)
         })
         logger.info("Default demonstration farmer account seeded (farmer@agritech.com / Farmer@12345)")
+    elif farmer_user.get("role") == "USER":
+        await db_instance.db.users.update_one(
+            {"_id": farmer_user["_id"]},
+            {"$set": {"role": "FARMER"}}
+        )
 
     logger.info("MongoDB successfully initialized and indexed!")
 

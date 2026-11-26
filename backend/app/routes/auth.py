@@ -3,13 +3,23 @@ Authentication REST Endpoints
 AI-Based Crop Yield Prediction System
 """
 
+import os
+import re
+import json
+import base64
+import logging
 from datetime import datetime, timezone
+import httpx
 from fastapi import APIRouter, HTTPException, Depends, status
 from bson import ObjectId
+from backend.app.config import settings
 from backend.app.schemas.auth import UserRegister, UserLogin, GoogleAuthRequest, UserProfileUpdate, UserResponse, Token, GoogleClientIdUpdate
 from backend.app.auth.security import hash_password, verify_password
-from backend.app.auth.jwt_handler import create_access_token, get_current_user
+from backend.app.auth.jwt_handler import create_access_token, get_current_user, get_current_admin
 from backend.app.database import get_database
+
+logger = logging.getLogger(__name__)
+GOOGLE_CLIENT_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]+\.apps\.googleusercontent\.com$")
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -96,51 +106,60 @@ async def login(credentials: UserLogin):
     )
     return Token(access_token=access_token, token_type="bearer", user=user_response)
 
-import logging
-import httpx
-import json
-import base64
-
-logger = logging.getLogger(__name__)
-
 @router.post("/google", response_model=Token)
 async def google_auth(payload: GoogleAuthRequest):
     """
-    Authenticate or register a real farmer/user account via Google OAuth 2.0.
-    Supports official Google ID Token (GIS) verification and direct real Gmail registration.
+    Authenticate or register a farmer/user account via Google OAuth 2.0.
+    In production (or when ALLOW_DEV_OAUTH_BYPASS is false), requires a verified Google ID token.
     """
     db = get_database()
-    
+
     email = payload.email
     name = payload.name
     picture = payload.picture
-    
-    # 1. Attempt token verification if Google ID token provided
+
     if payload.token:
         google_info = None
         try:
             async with httpx.AsyncClient(timeout=8.0) as client:
                 resp = await client.get(f"https://oauth2.googleapis.com/tokeninfo?id_token={payload.token}")
                 if resp.status_code == 200:
-                    google_info = resp.json()
+                    candidate = resp.json()
+                    email_verified = str(candidate.get("email_verified", "")).lower() == "true"
+                    aud_matches = not settings.GOOGLE_CLIENT_ID or candidate.get("aud") == settings.GOOGLE_CLIENT_ID
+                    if email_verified and aud_matches:
+                        google_info = candidate
+                    else:
+                        logger.warning("Google tokeninfo rejected: unverified email or client_id mismatch")
         except Exception as e:
             logger.warning(f"Google tokeninfo verification failed: {e}")
-            
-        # Fallback decode if external network is unavailable or local simulation
-        if not google_info and "." in payload.token:
-            try:
-                parts = payload.token.split(".")
-                if len(parts) >= 2:
-                    padded = parts[1] + "=" * ((4 - len(parts[1]) % 4) % 4)
-                    decoded = base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8")
-                    google_info = json.loads(decoded)
-            except Exception as e:
-                logger.warning(f"Could not parse payload from token: {e}")
-                
+
+        # Only allow unverified JWT payload decoding in local dev bypass mode
+        if not google_info:
+            if not settings.ALLOW_DEV_OAUTH_BYPASS:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid or unverified Google ID token"
+                )
+            if "." in payload.token:
+                try:
+                    parts = payload.token.split(".")
+                    if len(parts) >= 2:
+                        padded = parts[1] + "=" * ((4 - len(parts[1]) % 4) % 4)
+                        decoded = base64.urlsafe_b64decode(padded.encode("ascii")).decode("utf-8")
+                        google_info = json.loads(decoded)
+                except Exception as e:
+                    logger.warning(f"Could not parse payload from token: {e}")
+
         if google_info:
             email = google_info.get("email", email)
             name = google_info.get("name") or google_info.get("given_name") or name
             picture = google_info.get("picture", picture)
+    elif not settings.ALLOW_DEV_OAUTH_BYPASS:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Verified Google ID token is required"
+        )
 
     if not email:
         raise HTTPException(
@@ -275,14 +294,27 @@ async def update_profile(
         phone=updated_user.get("phone")
     )
 
-import os
-
 @router.post("/google-client-id")
-async def save_google_client_id(payload: GoogleClientIdUpdate):
+async def save_google_client_id(
+    payload: GoogleClientIdUpdate,
+    admin_user: dict = Depends(get_current_admin)
+):
     """
-    Save Google OAuth 2.0 Client ID to frontend/.env configuration file.
+    Save Google OAuth 2.0 Client ID to frontend/.env configuration file (Admin only, non-production).
     """
+    if settings.ENVIRONMENT == "production":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Modifying .env configuration via API is disabled in production"
+        )
+
     client_id = payload.client_id.strip()
+    if any(ch in client_id for ch in ("\n", "\r", "\x00")) or not GOOGLE_CLIENT_ID_PATTERN.match(client_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid Google OAuth Client ID format"
+        )
+
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
     env_path = os.path.join(root_dir, "frontend", ".env")
     try:

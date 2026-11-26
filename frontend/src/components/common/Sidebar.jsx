@@ -8,6 +8,7 @@ import {
   BarChart3,
   Map,
   SlidersHorizontal,
+  User,
   X
 } from 'lucide-react';
 
@@ -15,10 +16,10 @@ const Sidebar = ({ isOpen, onClose }) => {
   const { isHindi } = useLanguage();
 
   const navItemClass = ({ isActive }) =>
-    `flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
+    `flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
       isActive
-        ? 'bg-emerald-600 text-white shadow-sm shadow-emerald-600/30'
-        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+        ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/25'
+        : 'text-slate-600 hover:bg-emerald-50/80 hover:text-emerald-900'
     }`;
 
   return (
@@ -33,7 +34,7 @@ const Sidebar = ({ isOpen, onClose }) => {
 
       {/* Sidebar container */}
       <aside
-        className={`fixed top-16 bottom-0 left-0 z-40 w-64 bg-white border-r border-slate-200 transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed top-16 bottom-0 left-0 z-40 w-64 bg-white/85 backdrop-blur-xl border-r border-emerald-100/90 transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } flex flex-col justify-between overflow-y-auto`}
       >
@@ -76,6 +77,13 @@ const Sidebar = ({ isOpen, onClose }) => {
               <span>{isHindi ? 'कृषि विश्लेषण' : 'Agri Analytics'}</span>
             </NavLink>
           </div>
+        </div>
+
+        <div className="p-4 border-t border-emerald-100/80">
+          <NavLink to="/profile" onClick={onClose} className={navItemClass}>
+            <User className="w-4 h-4 flex-shrink-0" />
+            <span>{isHindi ? 'प्रोफ़ाइल व सेटिंग्स' : 'Profile & Account'}</span>
+          </NavLink>
         </div>
       </aside>
     </>

@@ -6,7 +6,7 @@ const LanguageContext = createContext();
 export const translations = {
   en: {
     // Header & Brand
-    brand_name: 'AgriYield.AI',
+    brand_name: 'KrishiPulse.AI',
     brand_tagline: 'Smart Agriculture & Predictive Intelligence',
     home: 'Home',
     yield_map: 'Yield Map',
@@ -151,7 +151,7 @@ export const translations = {
     footer_viva: 'Methodology & Research',
     footer_dataset: '19,407 Records Dataset',
     footer_model: 'Random Forest (R² = 0.81)',
-    footer_rights: '© 2026 AgriYield.AI. Empirical Agricultural Machine Learning Platform.',
+    footer_rights: '© 2026 KrishiPulse.AI. Empirical Agricultural Machine Learning Platform.',
     footer_tagline: 'Designed for Sustainable Farming & Precision Agriculture Support',
 
     // General & Seasons
@@ -189,7 +189,7 @@ export const translations = {
     footer_param_seasons: '6 Indian Cropping Seasons',
     footer_param_states: '30 States Agro-Climatic Zones',
     footer_bottom_credit: 'Crafted with 🌾 for Indian Farmers & Sustainable Agriculture',
-    footer_bottom_rights: '© 2026 AgriYield.AI. All Rights Reserved.',
+    footer_bottom_rights: '© 2026 KrishiPulse.AI. All Rights Reserved.',
     footer_highlight_1_title: '54 Indian Crops',
     footer_highlight_1_desc: 'Authentic historical multi-crop models',
     footer_highlight_2_title: '30 States & UTs',
@@ -201,7 +201,7 @@ export const translations = {
   },
   hi: {
     // Header & Brand
-    brand_name: 'एग्री-यील्ड.AI',
+    brand_name: 'कृषि-पल्स.AI',
     brand_tagline: 'स्मार्ट कृषि एवं उपज पूर्वानुमान प्रणाली',
     capstone_tag: '',
     home: 'होम',
@@ -348,7 +348,7 @@ export const translations = {
     footer_viva: 'कार्यप्रणाली एवं शोध',
     footer_dataset: '19,407 कृषि डेटा रिकॉर्ड्स',
     footer_model: 'रैंडम फॉरेस्ट मॉडल (R² = 0.81)',
-    footer_rights: '© 2026 एग्री-यील्ड.AI। अनुभवजन्य कृषि मशीन लर्निंग प्लेटफॉर्म।',
+    footer_rights: '© 2026 KrishiPulse.AI। अनुभवजन्य कृषि मशीन लर्निंग प्लेटफॉर्म।',
     footer_tagline: 'संवहनीय कृषि एवं सटीक उपज संवर्धन सहायता हेतु विकसित',
 
     // General & Seasons
@@ -386,7 +386,7 @@ export const translations = {
     footer_param_seasons: '6 भारतीय कृषि मौसम',
     footer_param_states: '30 राज्य कृषि-जलवायु क्षेत्र',
     footer_bottom_credit: 'भारतीय किसानों एवं संवहनीय कृषि के लिए 🌾 समर्पित',
-    footer_bottom_rights: '© 2026 AgriYield.AI. सर्वाधिकार सुरक्षित।',
+    footer_bottom_rights: '© 2026 KrishiPulse.AI। सर्वाधिकार सुरक्षित।',
     footer_highlight_1_title: '54 भारतीय फसलें',
     footer_highlight_1_desc: 'प्रामाणिक ऐतिहासिक बहु-फसल मॉडल',
     footer_highlight_2_title: '30 राज्य एवं केंद्र शासित प्रदेश',

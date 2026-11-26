@@ -3,8 +3,8 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import LanguageCircleToggle from './LanguageCircleToggle';
+import BrandLogo from './BrandLogo';
 import {
-  Sprout,
   LogIn,
   UserPlus,
   LogOut,
@@ -35,8 +35,8 @@ const Navbar = ({ onToggleSidebar }) => {
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 w-full bg-gradient-to-r from-emerald-100/90 via-emerald-50/95 to-teal-100/90 backdrop-blur-xl border-b border-emerald-200/80 shadow-sm shadow-emerald-950/5">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <header className="fixed top-0 inset-x-0 z-40 h-16 transform-gpu will-change-transform bg-gradient-to-r from-emerald-100/95 via-emerald-50/95 to-teal-100/95 backdrop-blur-md border-b border-emerald-200/80 shadow-sm shadow-emerald-950/5">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-full flex items-center justify-between">
         {/* ===================================================================== */}
         {/* LOGO & BRAND                                                          */}
         {/* ===================================================================== */}
@@ -51,24 +51,10 @@ const Navbar = ({ onToggleSidebar }) => {
             </button>
           )}
 
-          <Link to="/" className="flex items-center space-x-2 sm:space-x-3 group">
-            <div className="relative">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 flex items-center justify-center shadow-md shadow-emerald-600/25 ring-2 ring-emerald-400/40 group-hover:scale-105 group-hover:rotate-3 transition-all duration-300">
-                <Sprout className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-              </div>
-              <span className="absolute -top-0.5 -right-0.5 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-amber-400 border-2 border-white rounded-full"></span>
-            </div>
-
-            <div className="flex flex-col">
-              <span className="text-lg sm:text-xl font-black tracking-tight leading-none text-slate-900 group-hover:text-emerald-700 transition-colors">
-                Agri<span className="bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">Yield</span>
-                <span className="text-amber-500 font-extrabold">.AI</span>
-              </span>
-              <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-emerald-700/80 hidden sm:block mt-0.5">
-                Precision Agriculture
-              </span>
-            </div>
-          </Link>
+          <BrandLogo
+            to="/"
+            subtitle={isHindi ? 'सटीक स्मार्ट कृषि' : 'Precision Agriculture'}
+          />
         </div>
 
         {/* ===================================================================== */}
@@ -122,38 +108,34 @@ const Navbar = ({ onToggleSidebar }) => {
           <LanguageCircleToggle size="normal" />
 
           {isAuthenticated ? (
-            <div className="flex items-center space-x-1.5 sm:space-x-2.5">
+            <div className="flex items-center space-x-1.5 sm:space-x-2 pl-2 border-l border-emerald-200/80">
               <Link
-                to="/predict"
-                className="hidden sm:inline-flex items-center px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 rounded-xl shadow-md shadow-emerald-600/25 hover:shadow-emerald-600/35 hover:scale-105 active:scale-95 transition-all"
+                to="/profile"
+                className="flex items-center p-1 rounded-full hover:bg-emerald-100/80 border border-transparent hover:border-emerald-200 transition-all"
+                title={user?.name ? `${user.name} (${t('profile', 'Profile')})` : t('profile', 'Profile')}
+                aria-label="View Profile"
               >
-                <Sprout className="w-4 h-4 mr-1.5" />
-                {t('predict_yield', 'Predict Yield')}
-              </Link>
-
-              <div className="flex items-center space-x-1 sm:space-x-2 pl-1.5 sm:pl-2 border-l border-emerald-200">
-                <Link
-                  to="/profile"
-                  className="flex items-center space-x-1.5 p-1 sm:p-1.5 sm:pr-2.5 rounded-xl hover:bg-emerald-50/80 border border-transparent hover:border-emerald-200/80 transition-all text-slate-700"
-                  title="View Profile"
-                >
-                  <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-extrabold flex items-center justify-center text-xs shadow-sm ring-2 ring-emerald-300">
+                {user?.picture ? (
+                  <img
+                    src={user.picture}
+                    alt={user.name || 'Profile'}
+                    className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-400/70 shadow-sm bg-white"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-extrabold flex items-center justify-center text-xs shadow-sm ring-2 ring-emerald-300/80">
                     {user?.name?.charAt(0).toUpperCase() || 'U'}
                   </div>
-                  <span className="hidden md:inline-block text-xs font-bold text-slate-800 max-w-[100px] truncate">
-                    {user?.name}
-                  </span>
-                </Link>
+                )}
+              </Link>
 
-                <button
-                  onClick={handleLogout}
-                  className="p-1.5 sm:p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-200"
-                  title={t('sign_out', 'Sign Out')}
-                  aria-label="Sign Out"
-                >
-                  <LogOut className="w-4 h-4" />
-                </button>
-              </div>
+              <button
+                onClick={handleLogout}
+                className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all border border-transparent hover:border-red-200"
+                title={t('sign_out', 'Sign Out')}
+                aria-label="Sign Out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
           ) : (
             <div className="flex items-center space-x-1.5 sm:space-x-2">
