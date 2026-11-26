@@ -47,6 +47,12 @@ async def connect_to_mongo():
             "created_at": datetime.now(timezone.utc)
         })
         logger.info("Default administrator account seeded (admin@agritech.com / Admin@12345)")
+    elif admin_user.get("role") != "ADMIN":
+        await db_instance.db.users.update_one(
+            {"_id": admin_user["_id"]},
+            {"$set": {"role": "ADMIN"}}
+        )
+        logger.info("Restored seeded administrator role (admin@agritech.com -> ADMIN)")
 
     farmer_user = await db_instance.db.users.find_one({"email": "farmer@agritech.com"})
     if not farmer_user:

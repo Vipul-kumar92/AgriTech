@@ -8,25 +8,33 @@ import {
   FileSpreadsheet,
   MessageSquare,
   Award,
-  Activity,
-  ArrowUpRight,
-  Database
+  Star,
+  ClipboardList,
+  ExternalLink
 } from 'lucide-react';
 
 const AdminDashboardPage = () => {
   const [stats, setStats] = useState(null);
   const [logs, setLogs] = useState([]);
+  const [feedbackList, setFeedbackList] = useState([]);
+  const [feedbackTotal, setFeedbackTotal] = useState(0);
+  const [activeTab, setActiveTab] = useState('feedback');
+  const [ratingFilter, setRatingFilter] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [loadingFeedback, setLoadingFeedback] = useState(false);
 
   useEffect(() => {
     const fetchAdminData = async () => {
       try {
-        const [statsRes, logsRes] = await Promise.all([
+        const [statsRes, logsRes, fbRes] = await Promise.all([
           api.get('/admin/stats'),
-          api.get('/admin/logs?limit=10')
+          api.get('/admin/logs?limit=25'),
+          api.get('/admin/feedback?limit=25')
         ]);
         setStats(statsRes.data);
         setLogs(logsRes.data || []);
+        setFeedbackList(fbRes.data?.items || []);
+        setFeedbackTotal(fbRes.data?.total || 0);
       } catch (err) {
         console.error('Failed to load admin metrics:', err);
       } finally {
@@ -35,6 +43,30 @@ const AdminDashboardPage = () => {
     };
     fetchAdminData();
   }, []);
+
+  const handleRatingFilterChange = async (filterVal) => {
+    setRatingFilter(filterVal);
+    setLoadingFeedback(true);
+    try {
+      const params = new URLSearchParams({ limit: '25' });
+      if (filterVal === '5') {
+        params.append('min_rating', '5');
+        params.append('max_rating', '5');
+      } else if (filterVal === '4') {
+        params.append('min_rating', '4');
+        params.append('max_rating', '4');
+      } else if (filterVal === 'low') {
+        params.append('max_rating', '3');
+      }
+      const res = await api.get(`/admin/feedback?${params.toString()}`);
+      setFeedbackList(res.data?.items || []);
+      setFeedbackTotal(res.data?.total || 0);
+    } catch (err) {
+      console.error('Failed to filter feedback:', err);
+    } finally {
+      setLoadingFeedback(false);
+    }
+  };
 
   if (loading) {
     return <LoadingSpinner message="Auditing global system metrics and admin logs..." />;
@@ -53,7 +85,7 @@ const AdminDashboardPage = () => {
             System Control & Audit
           </h1>
           <p className="text-sm text-slate-500 mt-1">
-            Global monitoring of user registrations, machine learning executions, and feedback logs.
+            Global monitoring of user registrations, machine learning executions, and farmer feedback.
           </p>
         </div>
 
@@ -105,58 +137,156 @@ const AdminDashboardPage = () => {
         />
       </div>
 
-      {/* Recent System Activity Logs */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden space-y-4">
-        <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-          <div>
-            <h3 className="text-base font-bold text-slate-900">Recent System Activity Audit Logs</h3>
-            <p className="text-xs text-slate-500">Immutable ledger events captured from FastAPI middleware</p>
+      {/* Tabbed Governance Panel: Farmer Feedback Inbox & System Logs */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-5 sm:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200 self-start">
+            <button
+              type="button"
+              onClick={() => setActiveTab('feedback')}
+              className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                activeTab === 'feedback'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>Farmer Feedback Inbox ({stats?.total_feedback ?? feedbackTotal})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('logs')}
+              className={`inline-flex items-center space-x-2 px-4 py-2 rounded-lg text-xs font-bold transition-all ${
+                activeTab === 'logs'
+                  ? 'bg-slate-800 text-white shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <ClipboardList className="w-3.5 h-3.5" />
+              <span>System Activity Logs ({logs.length})</span>
+            </button>
           </div>
-          <span className="text-xs font-mono px-2.5 py-1 bg-slate-100 text-slate-600 rounded-lg">
-            system_logs collection
-          </span>
+
+          {activeTab === 'feedback' && (
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
+              {[
+                { key: 'all', label: 'All Ratings' },
+                { key: '5', label: '5 ★' },
+                { key: '4', label: '4 ★' },
+                { key: 'low', label: '≤ 3 ★' }
+              ].map((opt) => (
+                <button
+                  key={opt.key}
+                  type="button"
+                  onClick={() => handleRatingFilterChange(opt.key)}
+                  className={`px-3 py-1.5 rounded-lg font-bold transition-colors border ${
+                    ratingFilter === opt.key
+                      ? 'bg-amber-50 text-amber-900 border-amber-300'
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-600">
-            <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
-              <tr>
-                <th className="px-6 py-3.5">Action</th>
-                <th className="px-6 py-3.5">User Identity</th>
-                <th className="px-6 py-3.5">Associated Crop</th>
-                <th className="px-6 py-3.5">Predicted Yield</th>
-                <th className="px-6 py-3.5 text-right">Timestamp</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {logs.length > 0 ? (
-                logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-6 py-4 font-mono font-bold text-xs text-slate-800">
-                      <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700">
-                        {log.action}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-slate-700">{log.user}</td>
-                    <td className="px-6 py-4 font-semibold text-slate-900">{log.crop || '—'}</td>
-                    <td className="px-6 py-4 font-bold text-emerald-700">
-                      {log.predicted_yield ? `${log.predicted_yield} t/ha` : '—'}
-                    </td>
-                    <td className="px-6 py-4 text-right text-xs text-slate-400">
-                      {log.timestamp ? new Date(log.timestamp).toLocaleString() : 'N/A'}
-                    </td>
-                  </tr>
+        {activeTab === 'feedback' ? (
+          loadingFeedback ? (
+            <LoadingSpinner message="Loading farmer ratings and comments..." />
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {feedbackList.length > 0 ? (
+                feedbackList.map((fb) => (
+                  <div key={fb.id} className="p-5 sm:px-6 hover:bg-emerald-50/30 transition-colors flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div className="space-y-1.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center space-x-0.5">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`w-4 h-4 ${
+                                star <= fb.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-xs font-bold text-slate-800 font-mono">{fb.user_email}</span>
+                        {fb.crop && (
+                          <Link
+                            to={`/predict/result/${fb.prediction_id}`}
+                            className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100"
+                          >
+                            <span>
+                              {fb.crop} • {fb.state} ({fb.predicted_yield} t/ha)
+                            </span>
+                            <ExternalLink className="w-3 h-3" />
+                          </Link>
+                        )}
+                      </div>
+                      <p className="text-sm text-slate-700">
+                        {fb.comment ? (
+                          fb.comment
+                        ) : (
+                          <span className="italic text-slate-400">No written comment provided.</span>
+                        )}
+                      </p>
+                    </div>
+                    <span className="text-xs text-slate-400 whitespace-nowrap">
+                      {fb.created_at ? new Date(fb.created_at).toLocaleString() : 'N/A'}
+                    </span>
+                  </div>
                 ))
               ) : (
-                <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-slate-400 text-sm">
-                    No system log entries recorded yet.
-                  </td>
-                </tr>
+                <div className="px-6 py-12 text-center text-slate-400 text-sm">
+                  No farmer feedback submissions match this rating filter.
+                </div>
               )}
-            </tbody>
-          </table>
-        </div>
+            </div>
+          )
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-slate-600">
+              <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                <tr>
+                  <th className="px-6 py-3.5">Action</th>
+                  <th className="px-6 py-3.5">User Identity</th>
+                  <th className="px-6 py-3.5">Details / Crop</th>
+                  <th className="px-6 py-3.5">Predicted Yield</th>
+                  <th className="px-6 py-3.5 text-right">Timestamp</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {logs.length > 0 ? (
+                  logs.map((log) => (
+                    <tr key={log.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="px-6 py-4 font-mono font-bold text-xs text-slate-800">
+                        <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-700">
+                          {log.action}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-slate-700">{log.user}</td>
+                      <td className="px-6 py-4 font-semibold text-slate-900">{log.crop || '—'}</td>
+                      <td className="px-6 py-4 font-bold text-emerald-700">
+                        {log.predicted_yield ? `${log.predicted_yield} t/ha` : '—'}
+                      </td>
+                      <td className="px-6 py-4 text-right text-xs text-slate-400">
+                        {log.timestamp ? new Date(log.timestamp).toLocaleString() : 'N/A'}
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-slate-400 text-sm">
+                      No system log entries recorded yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

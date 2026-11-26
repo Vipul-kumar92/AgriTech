@@ -1,28 +1,41 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import api from '../services/api';
 import { LoadingSpinner } from '../components/common/StatCard';
 import { parseAgriVoiceTranscript } from '../utils/voiceParser';
 import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  Legend
+} from 'recharts';
+import {
   Sprout,
   MapPin,
   CloudRain,
   Beaker,
-  ShieldCheck,
-  Calendar,
-  Layers,
-  ArrowRight,
   AlertCircle,
-  HelpCircle,
   CloudSun,
   Thermometer,
   Droplets,
   Sparkles,
   RefreshCw,
-  Compass,
   Mic,
-  MicOff
+  MicOff,
+  Trophy,
+  TrendingUp,
+  IndianRupee,
+  BarChart3,
+  ArrowRight,
+  SlidersHorizontal,
+  Navigation,
+  AlertTriangle,
+  CalendarDays
 } from 'lucide-react';
 
 const PredictPage = () => {
@@ -39,6 +52,7 @@ const PredictPage = () => {
   // Live weather detection state
   const [liveWeather, setLiveWeather] = useState(null);
   const [loadingWeather, setLoadingWeather] = useState(false);
+  const [locatingGps, setLocatingGps] = useState(false);
   const [weatherNotice, setWeatherNotice] = useState('');
 
   // Form State
@@ -53,12 +67,16 @@ const PredictPage = () => {
     crop_year: 2024
   });
 
+  const [mode, setMode] = useState(location.state?.mode === 'recommend' ? 'recommend' : 'single');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [recommendationResult, setRecommendationResult] = useState(null);
+  const [recommendingCropRun, setRecommendingCropRun] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const [voiceStatus, setVoiceStatus] = useState('');
   const recognitionRef = useRef(null);
+  const resultsRef = useRef(null);
 
   // Fetch live meteorological parameters for a state
   const fetchLiveWeather = async (targetState, preservePresetRainfall = false) => {
@@ -84,6 +102,55 @@ const PredictPage = () => {
     } finally {
       setLoadingWeather(false);
     }
+  };
+
+  const handleUseGpsLocation = () => {
+    if (!navigator.geolocation) {
+      setWeatherNotice(
+        isHindi ? 'इस ब्राउज़र में GPS लोकेशन समर्थित नहीं है।' : 'GPS location is not supported in this browser.'
+      );
+      return;
+    }
+
+    setLocatingGps(true);
+    setWeatherNotice('');
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await api.get('/weather/live', {
+            params: { lat: latitude, lon: longitude }
+          });
+          setLiveWeather(res.data);
+          if (res.data?.state) {
+            setFormData((prev) => ({
+              ...prev,
+              state: res.data.state,
+              annual_rainfall: res.data.annual_rainfall_benchmark_mm ?? prev.annual_rainfall
+            }));
+            setWeatherNotice(
+              isHindi
+                ? `GPS द्वारा नजदीकी राज्य "${translateState(res.data.state)}" और वर्षा (${res.data.annual_rainfall_benchmark_mm} mm) सेट किया गया।`
+                : `Auto-selected nearest state "${res.data.state}" via GPS (${res.data.annual_rainfall_benchmark_mm} mm rain benchmark).`
+            );
+          }
+        } catch (err) {
+          console.warn('GPS location lookup failed:', err);
+          setWeatherNotice(isHindi ? 'GPS लोकेशन से मौसम प्राप्त नहीं हो सका।' : 'Unable to resolve weather from GPS location.');
+        } finally {
+          setLocatingGps(false);
+        }
+      },
+      () => {
+        setWeatherNotice(
+          isHindi
+            ? 'GPS अनुमति अस्वीकृत — कृपया सूची से अपना राज्य चुनें।'
+            : 'Location access denied — please select your state manually.'
+        );
+        setLocatingGps(false);
+      },
+      { enableHighAccuracy: false, timeout: 8000 }
+    );
   };
 
   // Fetch unique categories directly from backend dataset stats
@@ -151,12 +218,48 @@ const PredictPage = () => {
 
     setSubmitting(true);
     try {
-      const res = await api.post('/predict', formData);
-      navigate(`/predict/result/${res.data.prediction_id}`, { state: { prediction: res.data } });
+      if (mode === 'recommend') {
+        const res = await api.post('/recommend-crops', {
+          state: formData.state,
+          season: formData.season,
+          area: formData.area,
+          annual_rainfall: formData.annual_rainfall,
+          fertilizer: formData.fertilizer,
+          pesticide: formData.pesticide,
+          crop_year: formData.crop_year,
+          top_n: 5
+        });
+        setRecommendationResult(res.data);
+        setTimeout(() => {
+          resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 80);
+      } else {
+        const res = await api.post('/predict', formData);
+        navigate(`/predict/result/${res.data.prediction_id}`, { state: { prediction: res.data } });
+      }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to generate prediction. Please check inputs.');
+      setError(
+        err.response?.data?.detail ||
+          (mode === 'recommend'
+            ? 'Failed to generate crop recommendations. Please check inputs.'
+            : 'Failed to generate prediction. Please check inputs.')
+      );
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handlePredictRecommendedCrop = async (cropName) => {
+    setError('');
+    setRecommendingCropRun(cropName);
+    try {
+      const payload = { ...formData, crop: cropName };
+      const res = await api.post('/predict', payload);
+      navigate(`/predict/result/${res.data.prediction_id}`, { state: { prediction: res.data } });
+    } catch (err) {
+      setError(err.response?.data?.detail || `Failed to run detailed prediction for ${cropName}.`);
+    } finally {
+      setRecommendingCropRun('');
     }
   };
 
@@ -247,19 +350,61 @@ const PredictPage = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-16">
       {/* Header */}
-      <div>
-        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-2">
-          <Sprout className="w-3.5 h-3.5" />
-          <span>{isHindi ? 'मशीन लर्निंग इनफेरेंस' : 'Production ML Inference'}</span>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-2">
+            <Sprout className="w-3.5 h-3.5" />
+            <span>{isHindi ? 'मशीन लर्निंग इनफेरेंस' : 'Production ML Inference'}</span>
+          </div>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+            {mode === 'recommend'
+              ? (isHindi ? 'सर्वश्रेष्ठ फसल सलाहकार (टॉप-5 लाभ और उपज)' : 'Best Crop Recommender (Top-5 Profit & Yield)')
+              : t('predict_header_title', 'Agricultural Yield Prediction Lab')}
+          </h1>
+          <p className="text-sm text-slate-500 mt-1">
+            {mode === 'recommend'
+              ? (isHindi
+                  ? 'अपना राज्य, मौसम, क्षेत्रफल, वर्षा और खाद दर्ज करें — हम आपकी ज़मीन के लिए टॉप-5 सबसे लाभदायक फसलें रैंक करेंगे।'
+                  : 'Enter your state, season, land area, rainfall, and inputs — our ML + CACP MSP engine ranks the top 5 most profitable crops.')
+              : (isHindi
+                  ? 'अपने कृषि और पर्यावरणीय पैरामीटर दर्ज करें। हमारा प्रशिक्षित रैंडम फॉरेस्ट मॉडल टन/हेक्टेयर में सटीक उपज का अनुमान लगाएगा।'
+                  : 'Input your agricultural and environmental parameters. Our trained Random Forest pipeline will generate an empirical yield forecast in tonnes/hectare.')}
+          </p>
         </div>
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-          {t('predict_header_title', 'Agricultural Yield Prediction Lab')}
-        </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          {isHindi
-            ? 'अपने कृषि और पर्यावरणीय पैरामीटर दर्ज करें। हमारा प्रशिक्षित रैंडम फॉरेस्ट मॉडल टन/हेक्टेयर में सटीक उपज का अनुमान लगाएगा।'
-            : 'Input your agricultural and environmental parameters. Our trained Random Forest pipeline will generate an empirical yield forecast in tonnes/hectare.'}
-        </p>
+
+        {/* Mode Switcher */}
+        <div className="inline-flex p-1 rounded-2xl bg-slate-100 border border-slate-200 shadow-xs self-start md:self-auto flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              setMode('single');
+              setError('');
+            }}
+            className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+              mode === 'single'
+                ? 'bg-emerald-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Sprout className="w-3.5 h-3.5" />
+            <span>{isHindi ? 'एकल फसल पूर्वानुमान' : 'Single Crop'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setMode('recommend');
+              setError('');
+            }}
+            className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+              mode === 'recommend'
+                ? 'bg-gradient-to-r from-amber-500 to-emerald-600 text-white shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5" />
+            <span>{isHindi ? 'टॉप-5 फसल सलाहकार' : 'Top-5 Recommender'}</span>
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -306,47 +451,63 @@ const PredictPage = () => {
           <div className="flex items-center space-x-2 pb-3 border-b border-slate-100">
             <MapPin className="w-5 h-5 text-emerald-600" />
             <h3 className="text-base font-bold text-slate-900">
-              {isHindi ? '1. फसल एवं भौगोलिक स्थिति' : '1. Crop & Geographic Location'}
+              {mode === 'recommend'
+                ? (isHindi ? '1. भौगोलिक स्थिति और बुवाई का मौसम' : '1. Geographic Location & Cropping Season')
+                : (isHindi ? '1. फसल एवं भौगोलिक स्थिति' : '1. Crop & Geographic Location')}
             </h3>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                {t('predict_crop_label', 'Target Crop')}
-              </label>
-              <select
-                name="crop"
-                value={formData.crop}
-                onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white font-medium text-slate-800"
-              >
-                {categories.crops.map((c) => (
-                  <option key={c} value={c}>
-                    {translateCrop(c)}
-                  </option>
-                ))}
-              </select>
-              <p className="text-[11px] text-slate-400 mt-1">
-                {isHindi ? '54 विभिन्न फसल किस्में समर्थित' : '54 distinct varieties supported'}
-              </p>
-            </div>
+          <div className={`grid grid-cols-1 ${mode === 'recommend' ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-5`}>
+            {mode !== 'recommend' && (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                  {t('predict_crop_label', 'Target Crop')}
+                </label>
+                <select
+                  name="crop"
+                  value={formData.crop}
+                  onChange={handleChange}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white font-medium text-slate-800"
+                >
+                  {categories.crops.map((c) => (
+                    <option key={c} value={c}>
+                      {translateCrop(c)}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {isHindi ? '54 विभिन्न फसल किस्में समर्थित' : '54 distinct varieties supported'}
+                </p>
+              </div>
+            )}
 
             <div>
-              <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
                 <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
                   {t('predict_state_label', 'State / Region')}
                 </label>
-                <button
-                  type="button"
-                  onClick={() => fetchLiveWeather(formData.state)}
-                  disabled={loadingWeather}
-                  className="text-[11px] text-emerald-600 hover:text-emerald-700 font-bold flex items-center space-x-1"
-                  title="Query Open-Meteo for real-time climate"
-                >
-                  <RefreshCw className={`w-3 h-3 ${loadingWeather ? 'animate-spin' : ''}`} />
-                  <span>{loadingWeather ? (isHindi ? 'प्राप्त हो रहा है...' : 'Syncing...') : (isHindi ? 'मौसम सिंक' : 'Sync Weather')}</span>
-                </button>
+                <div className="flex items-center space-x-2.5">
+                  <button
+                    type="button"
+                    onClick={handleUseGpsLocation}
+                    disabled={locatingGps}
+                    className="text-[11px] text-teal-700 hover:text-teal-800 font-bold flex items-center space-x-1 disabled:opacity-60"
+                    title={isHindi ? 'अपनी GPS लोकेशन से राज्य चुनें' : 'Auto-detect nearest Indian state via GPS'}
+                  >
+                    <Navigation className={`w-3 h-3 ${locatingGps ? 'animate-pulse' : ''}`} />
+                    <span>{locatingGps ? (isHindi ? 'खोज...' : 'Locating...') : (isHindi ? 'GPS लोकेशन' : 'Use My GPS Location')}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fetchLiveWeather(formData.state)}
+                    disabled={loadingWeather}
+                    className="text-[11px] text-emerald-600 hover:text-emerald-700 font-bold flex items-center space-x-1"
+                    title="Query Open-Meteo for real-time climate"
+                  >
+                    <RefreshCw className={`w-3 h-3 ${loadingWeather ? 'animate-spin' : ''}`} />
+                    <span>{loadingWeather ? (isHindi ? 'प्राप्त हो रहा है...' : 'Syncing...') : (isHindi ? 'मौसम सिंक' : 'Sync Weather')}</span>
+                  </button>
+                </div>
               </div>
               <select
                 name="state"
@@ -465,6 +626,65 @@ const PredictPage = () => {
                   </div>
                 </div>
               </div>
+
+              {/* 3-Day Spraying / Irrigation Advisory Alert */}
+              {liveWeather.spray_advisory && (
+                <div
+                  className={`p-2.5 rounded-xl border text-[11px] flex items-start space-x-2 ${
+                    liveWeather.spray_advisory.spray_status === 'DELAY_SPRAY'
+                      ? 'bg-red-50 border-red-200 text-red-900'
+                      : liveWeather.spray_advisory.spray_status === 'CAUTION' || liveWeather.spray_advisory.spray_status === 'IRRIGATION_ALERT'
+                        ? 'bg-amber-50 border-amber-200 text-amber-900'
+                        : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                  }`}
+                >
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-600" />
+                  <div>
+                    <span className="font-bold">
+                      {isHindi ? 'स्प्रे / सिंचाई सलाह:' : 'Spray & Irrigation Advisory:'}{' '}
+                    </span>
+                    <span>
+                      {isHindi ? liveWeather.spray_advisory.advisory_hi : liveWeather.spray_advisory.advisory_en}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Compact 7-Day Rain & Min/Max Temp Forecast */}
+              {Array.isArray(liveWeather.forecast_7_days) && liveWeather.forecast_7_days.length > 0 && (
+                <div className="pt-2 border-t border-emerald-100/90 space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-700">
+                    <span className="inline-flex items-center space-x-1">
+                      <CalendarDays className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>{isHindi ? '7-दिवसीय वर्षा और तापमान पूर्वानुमान' : '7-Day Rain & Min/Max Temp Forecast'}</span>
+                    </span>
+                    <span className="text-sky-700">
+                      {isHindi ? 'अगले 3 दिन:' : 'Next 3d:'} {liveWeather.spray_advisory?.next_3_days_rain_mm ?? 0} mm
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-1.5">
+                    {liveWeather.forecast_7_days.map((day) => {
+                      const wet = Number(day.precipitation_mm) >= 5 || Number(day.precipitation_prob_pct) >= 60;
+                      return (
+                        <div
+                          key={day.date}
+                          className={`rounded-lg p-1.5 border text-center ${
+                            wet ? 'bg-sky-50 border-sky-200' : 'bg-white/90 border-slate-200/80'
+                          }`}
+                        >
+                          <div className="text-[10px] font-extrabold text-slate-800">{day.day_label}</div>
+                          <div className="text-[11px] font-black text-slate-900">
+                            {day.temp_max_c}°<span className="text-slate-400 font-semibold">/{day.temp_min_c}°</span>
+                          </div>
+                          <div className={`text-[10px] font-bold ${wet ? 'text-sky-700' : 'text-slate-500'}`}>
+                            {day.precipitation_mm}mm
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -611,19 +831,395 @@ const PredictPage = () => {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full sm:w-auto px-8 py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-base rounded-2xl shadow-lg shadow-emerald-600/25 transition-all hover:-translate-y-0.5 flex items-center justify-center disabled:opacity-50"
+            className={`w-full sm:w-auto px-8 py-4 text-white font-extrabold text-base rounded-2xl shadow-lg transition-all hover:-translate-y-0.5 flex items-center justify-center disabled:opacity-50 ${
+              mode === 'recommend'
+                ? 'bg-gradient-to-r from-amber-500 via-emerald-600 to-teal-600 hover:from-amber-600 hover:to-teal-700 shadow-emerald-600/25'
+                : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/25'
+            }`}
           >
             {submitting ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+            ) : mode === 'recommend' ? (
+              <Trophy className="w-5 h-5 mr-2" />
             ) : (
               <Sprout className="w-5 h-5 mr-2" />
             )}
             {submitting
-              ? t('predict_submitting', 'Running Hyper-Tuned Random Forest...')
-              : t('predict_submit_btn', 'Generate Machine Learning Prediction')}
+              ? mode === 'recommend'
+                ? (isHindi ? 'टॉप-5 लाभदायक फसलों की गणना हो रही है...' : 'Ranking Regional Crops by Yield & MSP Profit...')
+                : t('predict_submitting', 'Running Hyper-Tuned Random Forest...')
+              : mode === 'recommend'
+                ? (isHindi ? 'टॉप-5 लाभदायक फसलें खोजें' : 'Find Top-5 Profitable Crops')
+                : t('predict_submit_btn', 'Generate Machine Learning Prediction')}
           </button>
         </div>
       </form>
+
+      {/* ========================================================================= */}
+      {/* TOP-5 PROFITABLE CROPS RECOMMENDER RESULTS                                */}
+      {/* ========================================================================= */}
+      {mode === 'recommend' && recommendationResult && (
+        <div ref={resultsRef} className="space-y-6 pt-4">
+          {/* Context Banner */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-emerald-900 via-teal-900 to-emerald-950 text-white shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-1">
+              <div className="inline-flex items-center space-x-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-300">
+                <Trophy className="w-3.5 h-3.5" />
+                <span>
+                  {isHindi
+                    ? `${recommendationResult.evaluated_crops_count} क्षेत्रीय फसलों का मूल्यांकन पूर्ण`
+                    : `Evaluated ${recommendationResult.evaluated_crops_count} Regionally Suited Crops`}
+                </span>
+              </div>
+              <h2 className="text-xl font-black tracking-tight">
+                {isHindi
+                  ? `${translateState(recommendationResult.state)} • ${translateSeason(recommendationResult.season)} के लिए शीर्ष अनुशंसाएँ`
+                  : `Top Crop Recommendations for ${recommendationResult.state} (${recommendationResult.season})`}
+              </h2>
+              <p className="text-xs text-emerald-100/80">
+                {recommendationResult.area_hectares} ha • {recommendationResult.annual_rainfall_mm} mm {isHindi ? 'वर्षा' : 'rain'} • {recommendationResult.pricing_source}
+              </p>
+            </div>
+          </div>
+
+          {/* Head-to-Head Spotlight: Best Profit Crop vs Best Yield Crop */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {/* Best Profit Crop Card */}
+            {recommendationResult.best_profit_crop && (
+              <div className="bg-gradient-to-br from-amber-50 via-white to-emerald-50 rounded-2xl p-6 border-2 border-amber-300 shadow-sm space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-amber-100 text-amber-900 border border-amber-300">
+                      <IndianRupee className="w-3 h-3 mr-1" />
+                      {isHindi ? 'सर्वोच्च शुद्ध लाभ फसल (Best Profit)' : 'Best Profit Crop'}
+                    </span>
+                    <h3 className="text-2xl font-black text-slate-900 mt-2">
+                      {translateCrop(recommendationResult.best_profit_crop.crop)}
+                    </h3>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+                      {isHindi ? 'अनुमानित शुद्ध लाभ' : 'Est. Net Profit'}
+                    </span>
+                    <span className="text-2xl font-black text-emerald-700">
+                      ₹{recommendationResult.best_profit_crop.estimated_net_return_inr.toLocaleString('en-IN')}
+                    </span>
+                    <span className="text-xs font-bold text-emerald-600 block">
+                      (₹{recommendationResult.best_profit_crop.estimated_net_return_lakhs} {isHindi ? 'लाख' : 'Lakhs'})
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2.5 pt-2 border-t border-amber-200/70 text-xs">
+                  <div className="bg-white/90 rounded-xl p-2.5 border border-slate-200">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                      {isHindi ? 'अपेक्षित उपज' : 'Expected Yield'}
+                    </span>
+                    <span className="font-extrabold text-slate-900">
+                      {recommendationResult.best_profit_crop.predicted_yield_t_ha} t/ha
+                    </span>
+                  </div>
+                  <div className="bg-white/90 rounded-xl p-2.5 border border-slate-200">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                      {isHindi ? 'MSP / भाव' : 'MSP / Rate'}
+                    </span>
+                    <span className="font-extrabold text-slate-900">
+                      ₹{recommendationResult.best_profit_crop.msp_rate_per_quintal_inr}/q
+                    </span>
+                  </div>
+                  <div className="bg-white/90 rounded-xl p-2.5 border border-slate-200">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                      {isHindi ? 'लाभ मार्जिन' : 'Profit Margin'}
+                    </span>
+                    <span className="font-extrabold text-emerald-700">
+                      {recommendationResult.best_profit_crop.profit_margin_percent}%
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handlePredictRecommendedCrop(recommendationResult.best_profit_crop.crop)}
+                  disabled={recommendingCropRun === recommendationResult.best_profit_crop.crop}
+                  className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center transition-colors disabled:opacity-60"
+                >
+                  <span>{isHindi ? 'विस्तृत ML रिपोर्ट देखें' : 'Generate Full ML Prediction Report'}</span>
+                  <ArrowRight className="w-4 h-4 ml-1.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Best Yield Crop Card */}
+            {recommendationResult.best_yield_crop && (
+              <div className="bg-gradient-to-br from-teal-50 via-white to-sky-50 rounded-2xl p-6 border-2 border-teal-300 shadow-sm space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-teal-100 text-teal-900 border border-teal-300">
+                      <TrendingUp className="w-3 h-3 mr-1" />
+                      {isHindi ? 'सर्वाधिक उपज वाली फसल (Best Yield)' : 'Best Yield Crop'}
+                    </span>
+                    <h3 className="text-2xl font-black text-slate-900 mt-2">
+                      {translateCrop(recommendationResult.best_yield_crop.crop)}
+                    </h3>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+                      {isHindi ? 'अपेक्षित उपज' : 'Expected Yield'}
+                    </span>
+                    <span className="text-2xl font-black text-teal-700">
+                      {recommendationResult.best_yield_crop.predicted_yield_t_ha} <span className="text-sm font-bold">t/ha</span>
+                    </span>
+                    <span className="text-xs font-bold text-teal-600 block">
+                      {recommendationResult.best_yield_crop.total_production_tonnes.toLocaleString('en-IN')} {isHindi ? 'टन कुल' : 'tonnes total'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2.5 pt-2 border-t border-teal-200/70 text-xs">
+                  <div className="bg-white/90 rounded-xl p-2.5 border border-slate-200">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                      {isHindi ? 'शुद्ध लाभ' : 'Net Profit'}
+                    </span>
+                    <span className="font-extrabold text-slate-900">
+                      ₹{recommendationResult.best_yield_crop.estimated_net_return_lakhs} L
+                    </span>
+                  </div>
+                  <div className="bg-white/90 rounded-xl p-2.5 border border-slate-200">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                      {isHindi ? 'MSP / भाव' : 'MSP / Rate'}
+                    </span>
+                    <span className="font-extrabold text-slate-900">
+                      ₹{recommendationResult.best_yield_crop.msp_rate_per_quintal_inr}/q
+                    </span>
+                  </div>
+                  <div className="bg-white/90 rounded-xl p-2.5 border border-slate-200">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                      {isHindi ? 'स्थिति' : 'Match'}
+                    </span>
+                    <span className="font-extrabold text-teal-700">
+                      {recommendationResult.is_same_winner
+                        ? (isHindi ? 'दोनों #1 विजेता' : 'Dual Winner')
+                        : (isHindi ? 'उच्चतम बायोमास' : 'Max Biomass')}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handlePredictRecommendedCrop(recommendationResult.best_yield_crop.crop)}
+                  disabled={recommendingCropRun === recommendationResult.best_yield_crop.crop}
+                  className="w-full py-2.5 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold flex items-center justify-center transition-colors disabled:opacity-60"
+                >
+                  <span>{isHindi ? 'विस्तृत ML रिपोर्ट देखें' : 'Generate Full ML Prediction Report'}</span>
+                  <ArrowRight className="w-4 h-4 ml-1.5" />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Best Profit Crop vs Best Yield Crop Comparison Chart */}
+          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 flex items-center">
+                  <BarChart3 className="w-5 h-5 mr-2 text-emerald-600" />
+                  {isHindi
+                    ? 'सर्वोच्च लाभ फसल बनाम सर्वाधिक उपज फसल तुलना चार्ट'
+                    : 'Best Profit Crop vs Best Yield Crop Comparison'}
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {isHindi
+                    ? 'अनुमानित शुद्ध लाभ (₹ लाख) और अपेक्षित उपज (टन/हेक्टेयर) की सीधी तुलना'
+                    : 'Dual-axis comparison of Estimated Net Return (₹ Lakhs) against Predicted Yield (tonnes/ha)'}
+                </p>
+              </div>
+            </div>
+
+            <div className="h-80 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={(recommendationResult.comparison_chart || []).map((item) => ({
+                    ...item,
+                    cropLabel: translateCrop(item.crop)
+                  }))}
+                  margin={{ top: 10, right: 20, left: 10, bottom: 20 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis
+                    dataKey="cropLabel"
+                    tick={{ fill: '#334155', fontSize: 12, fontWeight: 600 }}
+                    axisLine={{ stroke: '#cbd5e1' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    yAxisId="profit"
+                    orientation="left"
+                    tick={{ fill: '#059669', fontSize: 11, fontWeight: 600 }}
+                    axisLine={false}
+                    tickLine={false}
+                    label={{
+                      value: isHindi ? 'शुद्ध लाभ (₹ लाख)' : 'Net Profit (₹ Lakhs)',
+                      angle: -90,
+                      position: 'insideLeft',
+                      fill: '#059669',
+                      fontSize: 11
+                    }}
+                  />
+                  <YAxis
+                    yAxisId="yield"
+                    orientation="right"
+                    tick={{ fill: '#d97706', fontSize: 11, fontWeight: 600 }}
+                    axisLine={false}
+                    tickLine={false}
+                    label={{
+                      value: isHindi ? 'उपज (t/ha)' : 'Yield (t/ha)',
+                      angle: 90,
+                      position: 'insideRight',
+                      fill: '#d97706',
+                      fontSize: 11
+                    }}
+                  />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const d = payload[0].payload;
+                      return (
+                        <div className="bg-white/95 backdrop-blur-md border border-slate-200 rounded-xl p-3 shadow-lg text-xs space-y-1">
+                          <div className="font-extrabold text-slate-900 text-sm">{d.cropLabel}</div>
+                          <div className="text-emerald-700 font-bold">
+                            {isHindi ? 'शुद्ध लाभ:' : 'Net Profit:'} ₹{d.estimated_net_return_inr.toLocaleString('en-IN')} ({d.estimated_net_return_lakhs} L)
+                          </div>
+                          <div className="text-amber-700 font-bold">
+                            {isHindi ? 'अपेक्षित उपज:' : 'Expected Yield:'} {d.predicted_yield_t_ha} t/ha ({d.total_production_tonnes} t)
+                          </div>
+                          <div className="text-slate-600">
+                            MSP / Rate: ₹{d.msp_rate_per_quintal_inr}/quintal
+                          </div>
+                        </div>
+                      );
+                    }}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '12px', fontWeight: 600 }} />
+                  <Bar
+                    yAxisId="profit"
+                    dataKey="estimated_net_return_lakhs"
+                    name={isHindi ? 'शुद्ध लाभ (₹ लाख)' : 'Est. Net Profit (₹ Lakhs)'}
+                    fill="#059669"
+                    radius={[6, 6, 0, 0]}
+                    barSize={32}
+                  />
+                  <Bar
+                    yAxisId="yield"
+                    dataKey="predicted_yield_t_ha"
+                    name={isHindi ? 'अपेक्षित उपज (t/ha)' : 'Expected Yield (t/ha)'}
+                    fill="#d97706"
+                    radius={[6, 6, 0, 0]}
+                    barSize={32}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Ranked Top-5 Table */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-base font-bold text-slate-900">
+                {isHindi ? 'टॉप-5 सबसे अधिक लाभदायक फसलों की रैंकिंग' : 'Top-5 Most Profitable Crops Ranking'}
+              </h3>
+              <span className="text-xs font-semibold text-slate-500">
+                {isHindi ? 'CACP MSP 2024–25 के अनुसार क्रमबद्ध' : 'Ranked by Estimated Net Return (INR)'}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-slate-50 text-slate-600 text-xs uppercase font-bold">
+                  <tr>
+                    <th className="px-5 py-3">{isHindi ? 'रैंक' : 'Rank'}</th>
+                    <th className="px-5 py-3">{isHindi ? 'फसल' : 'Crop'}</th>
+                    <th className="px-5 py-3">{isHindi ? 'अपेक्षित उपज' : 'Expected Yield'}</th>
+                    <th className="px-5 py-3">{isHindi ? 'MSP / भाव' : 'MSP Rate'}</th>
+                    <th className="px-5 py-3">{isHindi ? 'अनुमानित शुद्ध लाभ' : 'Est. Net Profit'}</th>
+                    <th className="px-5 py-3 text-right">{isHindi ? 'कार्रवाई' : 'Actions'}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {(recommendationResult.recommendations || []).map((rec) => (
+                    <tr key={rec.crop} className="hover:bg-emerald-50/40 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <span
+                          className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-black ${
+                            rec.rank === 1
+                              ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                              : rec.rank === 2
+                                ? 'bg-slate-200 text-slate-800'
+                                : rec.rank === 3
+                                  ? 'bg-orange-100 text-orange-800'
+                                  : 'bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          #{rec.rank}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="font-bold text-slate-900">{translateCrop(rec.crop)}</div>
+                        <span className="text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">
+                          {rec.suitability}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="font-extrabold text-slate-900">{rec.predicted_yield_t_ha} t/ha</div>
+                        <div className="text-[11px] text-slate-500">
+                          {rec.total_production_tonnes.toLocaleString('en-IN')} {isHindi ? 'टन' : 'tonnes'}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 font-semibold text-slate-700">
+                        ₹{rec.msp_rate_per_quintal_inr.toLocaleString('en-IN')}/q
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <div className="font-black text-emerald-700">
+                          ₹{rec.estimated_net_return_inr.toLocaleString('en-IN')}
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          ₹{rec.estimated_net_return_lakhs} L • {rec.profit_margin_percent}% margin
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-right whitespace-nowrap space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => handlePredictRecommendedCrop(rec.crop)}
+                          disabled={recommendingCropRun === rec.crop}
+                          className="inline-flex items-center px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors disabled:opacity-60"
+                        >
+                          {recommendingCropRun === rec.crop ? '...' : isHindi ? 'रिपोर्ट' : 'Full Report'}
+                        </button>
+                        <Link
+                          to="/simulator"
+                          state={{
+                            crop: rec.crop,
+                            state: recommendationResult.state,
+                            season: recommendationResult.season,
+                            area: formData.area,
+                            annual_rainfall: formData.annual_rainfall,
+                            fertilizer: formData.fertilizer,
+                            pesticide: formData.pesticide
+                          }}
+                          className="inline-flex items-center px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
+                          title="Simulate What-If Economics"
+                        >
+                          <SlidersHorizontal className="w-3.5 h-3.5 mr-1" />
+                          {isHindi ? 'सिमुलेट' : 'Simulate'}
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

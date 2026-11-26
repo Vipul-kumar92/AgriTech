@@ -3,29 +3,22 @@ import { useParams, useLocation, Link } from 'react-router-dom';
 import api from '../services/api';
 import { useLanguage } from '../context/LanguageContext';
 import { LoadingSpinner } from '../components/common/StatCard';
+import { buildFarmingAdvisory } from '../utils/farmingAdvisory';
 import {
   Sprout,
   CheckCircle,
   Calendar,
-  Layers,
-  Award,
-  TrendingUp,
-  MapPin,
-  Clock,
   Star,
-  MessageSquare,
-  ArrowRight,
-  ShieldCheck,
   Send,
   Volume2,
   VolumeX,
   Printer,
   IndianRupee,
-  BadgePercent,
-  Receipt,
-  FileCheck2,
   Sparkles,
-  Share2
+  Download,
+  Droplets,
+  Beaker,
+  Wheat
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from 'recharts';
 
@@ -47,6 +40,7 @@ const PredictionResultPage = () => {
   // Voice advisory state
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [activeSpeechLang, setActiveSpeechLang] = useState(null);
+  const [speechNotice, setSpeechNotice] = useState('');
 
   useEffect(() => {
     if (!prediction && id) {
@@ -107,8 +101,11 @@ const PredictionResultPage = () => {
   }, []);
 
   const handleVoiceAdvisory = (lang = 'en') => {
+    setSpeechNotice('');
     if (!('speechSynthesis' in window)) {
-      alert(isHindi ? 'इस ब्राउज़र में टेक्स्ट-टू-स्पीच समर्थित नहीं है।' : 'Text-to-speech is not supported in this browser.');
+      setSpeechNotice(
+        isHindi ? 'इस ब्राउज़र में टेक्स्ट-टू-स्पीच समर्थित नहीं है।' : 'Text-to-speech is not supported in this browser.'
+      );
       return;
     }
 
@@ -169,6 +166,93 @@ const PredictionResultPage = () => {
     window.print();
   };
 
+  const handleDownloadAdvisoryCard = () => {
+    const inputsSummary = prediction?.input_summary || prediction?.input_features || {};
+    const areaVal = Number(inputsSummary.area_hectares || inputsSummary.area || 1);
+    const fertVal = Number(inputsSummary.fertilizer_kg || inputsSummary.fertilizer || 100);
+    const adv = buildFarmingAdvisory({
+      crop: inputsSummary.crop || 'Rice',
+      season: inputsSummary.season || 'Kharif',
+      area: areaVal,
+      fertilizerKg: fertVal,
+      isHindi
+    });
+
+    const escapeHtml = (s) =>
+      String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+    const splitRows = adv.splitStages
+      .map(
+        (st) => `
+          <tr>
+            <td><strong>${escapeHtml(st.phase)}</strong><br/><small>${escapeHtml(st.timing)}</small></td>
+            <td>${st.ureaKg} kg</td>
+            <td>${st.dapKg} kg</td>
+            <td>${st.mopKg} kg</td>
+            <td>${escapeHtml(st.note)}</td>
+          </tr>`
+      )
+      .join('');
+
+    const irrigationRows = adv.irrigationStages
+      .map((ir) => `<li><strong>${escapeHtml(ir.stage)}:</strong> ${escapeHtml(ir.detail)}</li>`)
+      .join('');
+
+    const htmlDoc = `<!DOCTYPE html>
+<html lang="${isHindi ? 'hi' : 'en'}">
+<head>
+  <meta charset="UTF-8" />
+  <title>KrishiPulse.AI Advisory - ${escapeHtml(inputsSummary.crop)}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 28px; color: #0f172a; line-height: 1.5; }
+    .header { border-bottom: 3px solid #065f46; padding-bottom: 12px; margin-bottom: 18px; }
+    .badge { display: inline-block; background: #d1fae5; color: #065f46; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: bold; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 16px 0; }
+    .card { border: 1px solid #cbd5e1; border-radius: 10px; padding: 12px; background: #f8fafc; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+    th, td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; }
+    th { background: #ecfdf5; color: #064e3b; }
+    h2 { color: #065f46; margin-top: 22px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <span class="badge">KRISHIPULSE.AI • FARM ADVISORY CARD</span>
+    <h1 style="margin:8px 0 4px;">${escapeHtml(inputsSummary.crop)} — ${escapeHtml(inputsSummary.state)} (${escapeHtml(inputsSummary.season)})</h1>
+    <small>Ref: #${escapeHtml(prediction.prediction_id || id)} • Issued: ${escapeHtml(new Date().toLocaleDateString('en-IN'))}</small>
+  </div>
+  <div class="grid">
+    <div class="card"><small>Predicted Yield</small><br/><strong style="font-size:20px;">${escapeHtml(prediction.predicted_yield)} t/ha</strong><br/><small>Total Harvest: ${escapeHtml(prediction.predicted_total_production)} tonnes</small></div>
+    <div class="card"><small>Sowing & Harvest Window</small><br/><strong>${escapeHtml(adv.sowingWindow)}</strong><br/><small>Harvest: ${escapeHtml(adv.harvestWindow)}</small></div>
+    <div class="card"><small>Est. Net MSP Return</small><br/><strong style="font-size:20px;">₹${economics ? Math.round(economics.net_farm_return_inr).toLocaleString('en-IN') : 'N/A'}</strong><br/><small>Area: ${areaVal} ha</small></div>
+  </div>
+  <h2>Fertilizer Split Schedule (${adv.totalFertilizerKg} kg total • ~${adv.ureaBags45Kg} Urea / ${adv.dapBags50Kg} DAP / ${adv.mopBags50Kg} MOP bags)</h2>
+  <table>
+    <thead><tr><th>Stage & Timing</th><th>Urea (46% N)</th><th>DAP (18-46-0)</th><th>MOP (60% K)</th><th>Guidance</th></tr></thead>
+    <tbody>${splitRows}</tbody>
+  </table>
+  <h2>Critical Irrigation Stages</h2>
+  <ul>${irrigationRows}</ul>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlDoc], { type: 'text/html;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute(
+      'download',
+      `KrishiPulse_Advisory_${String(inputsSummary.crop || 'Crop').replace(/[^a-zA-Z0-9]/g, '_')}_${String(inputsSummary.state || 'India').replace(/[^a-zA-Z0-9]/g, '_')}.html`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const handleFeedbackSubmit = async (e) => {
     e.preventDefault();
     setSubmittingFeedback(true);
@@ -202,6 +286,13 @@ const PredictionResultPage = () => {
   }
 
   const inputs = prediction.input_summary || prediction.input_features || {};
+  const advisory = buildFarmingAdvisory({
+    crop: inputs.crop || 'Rice',
+    season: inputs.season || 'Kharif',
+    area: inputs.area_hectares || inputs.area || 1,
+    fertilizerKg: inputs.fertilizer_kg ?? inputs.fertilizer ?? 100,
+    isHindi
+  });
   const influenceData = prediction.feature_influence
     ? Object.entries(prediction.feature_influence).map(([key, val]) => ({
         feature: key.replace(/_/g, ' '),
@@ -249,14 +340,31 @@ const PredictionResultPage = () => {
           </button>
         </div>
 
-        <button
-          onClick={handlePrint}
-          className="inline-flex items-center space-x-1.5 px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
-        >
-          <Printer className="w-4 h-4 text-slate-600" />
-          <span>{isHindi ? 'सलाह रिपोर्ट प्रिंट करें' : 'Print Official Advisory Certificate'}</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={handleDownloadAdvisoryCard}
+            className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold transition-colors"
+          >
+            <Download className="w-4 h-4 text-emerald-600" />
+            <span>{isHindi ? 'एडवाइजरी कार्ड डाउनलोड करें' : 'Download Advisory Card'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={handlePrint}
+            className="inline-flex items-center space-x-1.5 px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+          >
+            <Printer className="w-4 h-4 text-slate-600" />
+            <span>{isHindi ? 'प्रिंट / PDF सेव करें' : 'Print / Save PDF Advisory'}</span>
+          </button>
+        </div>
       </div>
+
+      {speechNotice && (
+        <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium print:hidden">
+          {speechNotice}
+        </div>
+      )}
 
       {/* Official Certificate Header (Visible in Print Only) */}
       <div className="hidden print:block text-center border-b-2 border-emerald-800 pb-6 mb-6">
@@ -408,6 +516,145 @@ const PredictionResultPage = () => {
           </p>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* FERTILIZER NPK SPLIT & ACTIONABLE FARMING CALENDAR ADVISORY               */}
+      {/* ========================================================================= */}
+      <div className="bg-white/95 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-emerald-200 shadow-sm space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div className="flex items-center space-x-2.5">
+            <Calendar className="w-5 h-5 text-emerald-600" />
+            <div>
+              <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                {isHindi
+                  ? 'उर्वरक (NPK) विभाजन एवं कृषि कैलेंडर सलाह'
+                  : 'Actionable Fertilizer Split & Farming Calendar Advisory'}
+              </h3>
+              <p className="text-xs text-slate-500">
+                {isHindi ? translateCrop(inputs.crop) : inputs.crop} • {isHindi ? translateSeason(inputs.season) : inputs.season} • {inputs.area_hectares || inputs.area} {isHindi ? 'हेक्टेयर' : 'ha'} ({advisory.cropCategory})
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 print:hidden">
+            <button
+              type="button"
+              onClick={handleDownloadAdvisoryCard}
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>{isHindi ? 'कार्ड डाउनलोड' : 'Download Card'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>{isHindi ? 'प्रिंट' : 'Print'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Sowing Window, Harvest Window, Total Commercial Bag Summary */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-1">
+            <div className="flex items-center space-x-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+              <Wheat className="w-3.5 h-3.5" />
+              <span>{isHindi ? 'बुवाई का उपयुक्त समय' : 'Optimal Sowing Window'}</span>
+            </div>
+            <p className="text-sm font-extrabold text-slate-900">{advisory.sowingWindow}</p>
+            <p className="text-[11px] text-slate-600">
+              {isHindi ? 'कटाई:' : 'Harvest:'} <span className="font-semibold">{advisory.harvestWindow}</span>
+            </p>
+          </div>
+
+          <div className="p-4 rounded-xl bg-amber-50/70 border border-amber-200 space-y-1">
+            <div className="flex items-center space-x-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-800">
+              <Beaker className="w-3.5 h-3.5" />
+              <span>{isHindi ? 'अनुमानित खाद बोरी (Bags)' : 'Approx. Commercial Bags'}</span>
+            </div>
+            <p className="text-sm font-extrabold text-slate-900">
+              {advisory.ureaBags45Kg} {isHindi ? 'यूरिया' : 'Urea'} • {advisory.dapBags50Kg} DAP • {advisory.mopBags50Kg} MOP
+            </p>
+            <p className="text-[11px] text-slate-600">
+              {isHindi ? `कुल ${advisory.totalFertilizerKg} kg (${advisory.fertPerHa} kg/हे.)` : `From ${advisory.totalFertilizerKg} kg total (${advisory.fertPerHa} kg/ha)`}
+            </p>
+          </div>
+
+          <div className="p-4 rounded-xl bg-sky-50/70 border border-sky-200 space-y-1">
+            <div className="flex items-center space-x-1.5 text-[11px] font-bold uppercase tracking-wider text-sky-800">
+              <Droplets className="w-3.5 h-3.5" />
+              <span>{isHindi ? 'प्रमुख सिंचाई चरण' : 'Critical Irrigation Focus'}</span>
+            </div>
+            <p className="text-sm font-extrabold text-slate-900">
+              {advisory.irrigationStages.length} {isHindi ? 'मुख्य चरण चिन्हित' : 'Critical Stages Scheduled'}
+            </p>
+            <p className="text-[11px] text-slate-600 truncate">
+              {advisory.irrigationStages[0]?.stage}
+            </p>
+          </div>
+        </div>
+
+        {/* Basal vs Top-Dressing Split Table */}
+        <div className="space-y-2">
+          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-600">
+            {isHindi ? 'बेसल बनाम टॉप-ड्रेसिंग खाद विभाजन (Urea / DAP / MOP)' : 'Fertilizer Split Schedule (Basal vs Top-Dressing)'}
+          </h4>
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
+            <table className="w-full text-xs sm:text-sm text-left">
+              <thead className="bg-emerald-50/80 text-[11px] uppercase font-bold text-slate-600 border-b border-slate-200">
+                <tr>
+                  <th className="px-4 py-2.5">{isHindi ? 'अवस्था व समय' : 'Application Stage'}</th>
+                  <th className="px-4 py-2.5">{isHindi ? 'यूरिया (46% N)' : 'Urea (46% N)'}</th>
+                  <th className="px-4 py-2.5">DAP (18-46-0)</th>
+                  <th className="px-4 py-2.5">MOP (60% K)</th>
+                  <th className="px-4 py-2.5">{isHindi ? 'कृषि निर्देश' : 'Field Guidance'}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {advisory.splitStages.map((stage) => (
+                  <tr key={stage.id} className="hover:bg-slate-50/70">
+                    <td className="px-4 py-3">
+                      <div className="font-bold text-slate-900">{stage.phase}</div>
+                      <div className="text-[11px] text-emerald-700 font-medium">{stage.timing}</div>
+                    </td>
+                    <td className="px-4 py-3 font-extrabold text-slate-900">{stage.ureaKg} kg</td>
+                    <td className="px-4 py-3 font-extrabold text-slate-900">{stage.dapKg} kg</td>
+                    <td className="px-4 py-3 font-extrabold text-slate-900">{stage.mopKg} kg</td>
+                    <td className="px-4 py-3 text-xs text-slate-600">{stage.note}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Critical Irrigation Stages Checklist */}
+        <div className="space-y-2">
+          <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-600">
+            {isHindi ? 'सिंचाई समय-सारणी एवं जल प्रबंधन' : 'Critical Irrigation Stages'}
+          </h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+            {advisory.irrigationStages.map((item, idx) => (
+              <div key={idx} className="p-3 rounded-xl bg-sky-50/50 border border-sky-100 flex items-start space-x-2.5">
+                <span className="w-6 h-6 rounded-full bg-sky-600 text-white text-[11px] font-black flex items-center justify-center flex-shrink-0">
+                  {idx + 1}
+                </span>
+                <div>
+                  <div className="text-xs font-bold text-slate-900">{item.stage}</div>
+                  <div className="text-[11px] text-slate-600">{item.detail}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-slate-400 italic pt-1">
+            {isHindi
+              ? '* नोट: सटीक खुराक के लिए अपने नजदीकी कृषि विज्ञान केंद्र (KVK) या मृदा स्वास्थ्य कार्ड (Soil Health Card) से मिलान अवश्य करें।'
+              : '* Note: Bag estimates assume standard commercial grades (Urea 45kg, DAP/MOP 50kg); adjust to your local Soil Health Card recommendation.'}
+          </p>
+        </div>
+      </div>
 
       {/* Input Parameters Summary */}
       <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-emerald-100 shadow-sm space-y-6">
@@ -573,6 +820,15 @@ const PredictionResultPage = () => {
         <div className="flex flex-wrap gap-3 w-full sm:w-auto">
           <Link
             to="/simulator"
+            state={{
+              crop: inputs.crop,
+              state: inputs.state,
+              season: inputs.season,
+              area: inputs.area_hectares || inputs.area,
+              annual_rainfall: inputs.annual_rainfall_mm || inputs.annual_rainfall,
+              fertilizer: inputs.fertilizer_kg || inputs.fertilizer,
+              pesticide: inputs.pesticide_kg || inputs.pesticide
+            }}
             className="flex-1 sm:flex-initial px-5 py-3 bg-teal-50 hover:bg-teal-100 text-teal-800 font-bold text-sm rounded-xl border border-teal-200 transition-colors text-center flex items-center justify-center space-x-1"
           >
             <Sparkles className="w-4 h-4 mr-1 text-teal-600" />

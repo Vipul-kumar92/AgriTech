@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import {
   LayoutDashboard,
@@ -8,10 +9,14 @@ import {
   BarChart3,
   Map,
   SlidersHorizontal,
+  ShieldCheck,
+  Users,
+  FileSpreadsheet,
   X
 } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }) => {
+  const { isAdmin } = useAuth();
   const { isHindi } = useLanguage();
 
   const navItemClass = ({ isActive }) =>
@@ -76,6 +81,26 @@ const Sidebar = ({ isOpen, onClose }) => {
               <span>{isHindi ? 'कृषि विश्लेषण' : 'Agri Analytics'}</span>
             </NavLink>
           </div>
+
+          {isAdmin && (
+            <div className="space-y-1 pt-4 border-t border-emerald-100/80">
+              <div className="px-3 text-[11px] font-bold uppercase tracking-wider text-amber-600 mb-2">
+                {isHindi ? 'प्रशासन व नियंत्रण' : 'Admin Governance'}
+              </div>
+              <NavLink to="/admin" end onClick={onClose} className={navItemClass}>
+                <ShieldCheck className="w-4 h-4 flex-shrink-0" />
+                <span>{isHindi ? 'एडमिन व फीडबैक' : 'Admin & Feedback'}</span>
+              </NavLink>
+              <NavLink to="/admin/users" onClick={onClose} className={navItemClass}>
+                <Users className="w-4 h-4 flex-shrink-0" />
+                <span>{isHindi ? 'उपयोगकर्ता सूची' : 'User Directory'}</span>
+              </NavLink>
+              <NavLink to="/admin/predictions" onClick={onClose} className={navItemClass}>
+                <FileSpreadsheet className="w-4 h-4 flex-shrink-0" />
+                <span>{isHindi ? 'वैश्विक पूर्वानुमान' : 'Global Predictions'}</span>
+              </NavLink>
+            </div>
+          )}
         </div>
       </aside>
     </>

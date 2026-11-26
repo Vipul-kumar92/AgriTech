@@ -3,12 +3,15 @@ Agronomic What-If Simulation & MSP Farm Economics Engine
 AI-Based Crop Yield Prediction System
 """
 
+import os
 import numpy as np
 import pandas as pd
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+from backend.app.config import settings
 from backend.app.services.prediction_service import PredictionEngine
 
 # Official Government of India Minimum Support Prices (MSP 2024-25 in INR per Quintal)
+# & Agricultural Wholesale Market Benchmarks for horticulture/spices
 # 1 Metric Tonne = 10 Quintals
 MSP_RATES_INR_PER_QUINTAL: Dict[str, float] = {
     "Paddy": 2300.0,
@@ -17,9 +20,11 @@ MSP_RATES_INR_PER_QUINTAL: Dict[str, float] = {
     "Maize": 2225.0,
     "Sugarcane": 340.0,  # Fair and Remunerative Price (FRP)
     "Cotton": 7121.0,
+    "Cotton(lint)": 7121.0,
     "Gram": 5440.0,
     "Arhar/Tur": 7550.0,
     "Mustard": 5650.0,
+    "Rapeseed &Mustard": 5650.0,
     "Soyabean": 4892.0,
     "Soybean": 4892.0,
     "Groundnut": 6783.0,
@@ -35,8 +40,54 @@ MSP_RATES_INR_PER_QUINTAL: Dict[str, float] = {
     "Sunflower": 7280.0,
     "Urad": 7400.0,
     "Moong": 8682.0,
-    "Lentil": 6425.0
+    "Moong(Green Gram)": 8682.0,
+    "Lentil": 6425.0,
+    "Masoor": 6425.0,
+    "Sesamum": 9267.0,
+    "Safflower": 5800.0,
+    "Niger seed": 8717.0,
+    "Castor seed": 5800.0,
+    "Linseed": 5600.0,
+    "Guar seed": 5200.0,
+    "Horse-gram": 4800.0,
+    "Moth": 7500.0,
+    "Khesari": 4500.0,
+    "Cowpea(Lobia)": 6200.0,
+    "Small millets": 4200.0,
+    "Peas & beans (Pulses)": 6200.0,
+    "Banana": 1800.0,
+    "Tapioca": 1100.0,
+    "Sweet potato": 1400.0,
+    "Dry chillies": 14000.0,
+    "Garlic": 6500.0,
+    "Coriander": 7200.0,
+    "Mesta": 5000.0,
+    "Tobacco": 15000.0,
+    "Cashewnut": 9500.0,
+    "Arecanut": 38000.0,
+    "Black pepper": 52000.0,
+    "Cardamom": 120000.0,
+    "Sannhamp": 4500.0,
 }
+
+EXCLUDED_RECOMMENDATION_CROPS = {
+    "Other  Rabi pulses",
+    "Other Kharif pulses",
+    "Other Summer Pulses",
+    "Other Cereals",
+    "Oilseeds total",
+    "other oilseeds",
+}
+
+_dataset_df_cache: Optional[pd.DataFrame] = None
+
+
+def _get_dataset_df() -> Optional[pd.DataFrame]:
+    """Load and cache the cleaned crop yield dataset for regional candidate lookup."""
+    global _dataset_df_cache
+    if _dataset_df_cache is None and os.path.exists(settings.PROCESSED_DATA_PATH):
+        _dataset_df_cache = pd.read_csv(settings.PROCESSED_DATA_PATH)
+    return _dataset_df_cache
 
 DEFAULT_MSP_FALLBACK = 2200.0  # INR per quintal default reference
 AVG_FERTILIZER_PRICE_PER_KG = 14.5  # Composite subsidized Urea/DAP/NPK (INR/kg)
@@ -169,4 +220,129 @@ def run_what_if_simulation(
         "base_economics": base_economics,
         "rainfall_sensitivity_curve": rainfall_scenarios,
         "fertilizer_sensitivity_curve": fertilizer_scenarios
+    }
+
+
+def recommend_top_crops(
+    state: str,
+    season: str,
+    area_ha: float,
+    annual_rainfall: float,
+    fertilizer_kg: float,
+    pesticide_kg: float,
+    crop_year: int = 2024,
+    top_n: int = 5
+) -> Dict[str, Any]:
+    """
+    Evaluate major regionally suitable crops in a single vectorized ML inference pass,
+    rank Top-N crops by estimated net MSP return, and compare Best Profit vs Best Yield.
+    """
+    engine = PredictionEngine.get_instance()
+    if engine.pipeline is None:
+        engine.load_model()
+
+    cleaned_state = state.strip()
+    cleaned_season = season.strip()
+    df = _get_dataset_df()
+
+    regional_crops: List[str] = []
+    seasonal_fallback_crops: List[str] = []
+
+    if df is not None and not df.empty:
+        regional_mask = (df["State"] == cleaned_state) & (df["Season"] == cleaned_season)
+        reg_counts = df.loc[regional_mask, "Crop"].value_counts()
+        regional_crops = [
+            c for c in reg_counts.index.tolist()
+            if c not in EXCLUDED_RECOMMENDATION_CROPS
+        ]
+
+        if len(regional_crops) < top_n:
+            season_counts = df.loc[df["Season"] == cleaned_season, "Crop"].value_counts()
+            seasonal_fallback_crops = [
+                c for c in season_counts.index.tolist()
+                if c not in EXCLUDED_RECOMMENDATION_CROPS and c not in regional_crops
+            ]
+
+    candidate_records: List[Dict[str, str]] = []
+    for c in regional_crops:
+        candidate_records.append({"crop": c, "suitability": "Regional + Seasonal Match"})
+
+    # Pad up to 10 candidates only if regional matches are sparse for that season
+    if len(candidate_records) < top_n:
+        needed = max(top_n, 8) - len(candidate_records)
+        for c in seasonal_fallback_crops[:needed]:
+            candidate_records.append({"crop": c, "suitability": "Seasonal National Match"})
+
+    if not candidate_records:
+        # Defensive fallback if dataset file is absent
+        fallback_list = ["Rice", "Wheat", "Maize", "Sugarcane", "Cotton(lint)", "Groundnut", "Potato", "Onion", "Gram", "Rapeseed &Mustard"]
+        candidate_records = [{"crop": c, "suitability": "General Benchmark"} for c in fallback_list]
+
+    fert_per_ha = fertilizer_kg / area_ha if area_ha > 0 else 100.0
+    pest_per_ha = pesticide_kg / area_ha if area_ha > 0 else 2.5
+
+    batch_df = pd.DataFrame([
+        {
+            "Crop": rec["crop"],
+            "Season": cleaned_season,
+            "State": cleaned_state,
+            "Area": float(area_ha),
+            "Annual_Rainfall": float(annual_rainfall),
+            "Fertilizer_per_Ha": float(fert_per_ha),
+            "Pesticide_per_Ha": float(pest_per_ha),
+            "Crop_Year": int(crop_year),
+        }
+        for rec in candidate_records
+    ])
+
+    predicted_yields = engine.pipeline.predict(batch_df)
+
+    evaluated: List[Dict[str, Any]] = []
+    for rec, raw_y in zip(candidate_records, predicted_yields):
+        pred_y = round(max(0.01, float(raw_y)), 2)
+        econ = calculate_farm_economics(rec["crop"], area_ha, pred_y, fertilizer_kg, pesticide_kg)
+        evaluated.append({
+            "crop": rec["crop"],
+            "suitability": rec["suitability"],
+            "predicted_yield_t_ha": pred_y,
+            "total_production_tonnes": econ["total_production_tonnes"],
+            "msp_rate_per_quintal_inr": econ["msp_rate_per_quintal_inr"],
+            "gross_revenue_inr": econ["gross_revenue_inr"],
+            "total_chemical_cost_inr": econ["total_chemical_cost_inr"],
+            "estimated_net_return_inr": econ["estimated_net_return_inr"],
+            "estimated_net_return_lakhs": econ["estimated_net_return_lakhs"],
+            "profit_margin_percent": econ["profit_margin_percent"],
+        })
+
+    by_profit = sorted(evaluated, key=lambda x: x["estimated_net_return_inr"], reverse=True)
+    by_yield = sorted(evaluated, key=lambda x: x["predicted_yield_t_ha"], reverse=True)
+
+    top_recommendations = []
+    for idx, item in enumerate(by_profit[:top_n], start=1):
+        entry = dict(item)
+        entry["rank"] = idx
+        top_recommendations.append(entry)
+
+    best_profit_crop = by_profit[0]
+    best_yield_crop = by_yield[0]
+
+    # Ensure comparison chart includes top profitable crops AND Best Yield Crop
+    comparison_chart = [dict(item) for item in top_recommendations]
+    if not any(item["crop"] == best_yield_crop["crop"] for item in comparison_chart):
+        comparison_chart.append(dict(best_yield_crop))
+
+    return {
+        "state": cleaned_state,
+        "season": cleaned_season,
+        "area_hectares": round(float(area_ha), 2),
+        "annual_rainfall_mm": round(float(annual_rainfall), 1),
+        "fertilizer_kg": round(float(fertilizer_kg), 1),
+        "pesticide_kg": round(float(pesticide_kg), 1),
+        "evaluated_crops_count": len(evaluated),
+        "best_profit_crop": best_profit_crop,
+        "best_yield_crop": best_yield_crop,
+        "is_same_winner": best_profit_crop["crop"] == best_yield_crop["crop"],
+        "recommendations": top_recommendations,
+        "comparison_chart": comparison_chart,
+        "pricing_source": "Government of India CACP / MSP 2024–25 Gazette & Market Benchmarks",
     }

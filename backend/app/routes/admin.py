@@ -5,13 +5,20 @@ AI-Based Crop Yield Prediction System
 
 import os
 import json
-from typing import Dict, Any, List
+from datetime import datetime, timezone
+from typing import Dict, Any, List, Optional
+from bson import ObjectId
 from fastapi import APIRouter, Depends, Query, HTTPException, status
+from pydantic import BaseModel, Field
 from backend.app.config import settings
 from backend.app.auth.jwt_handler import get_current_admin
 from backend.app.database import get_database
 
 router = APIRouter(prefix="/admin", tags=["Admin Center"])
+
+
+class RoleUpdateRequest(BaseModel):
+    role: str = Field(..., pattern="^(FARMER|ADMIN)$")
 
 @router.get("/stats", response_model=Dict[str, Any])
 async def get_admin_dashboard_stats(admin_user: dict = Depends(get_current_admin)):
@@ -51,14 +58,25 @@ async def get_admin_dashboard_stats(admin_user: dict = Depends(get_current_admin
 async def list_registered_users(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
+    search: Optional[str] = Query(None, description="Search by user name or email"),
+    role: Optional[str] = Query(None, description="Filter by role (FARMER or ADMIN)"),
     admin_user: dict = Depends(get_current_admin)
 ):
-    """Retrieve directory of registered users with role inspection."""
+    """Retrieve directory of registered users with optional search, role filter, and inspection."""
     db = get_database()
-    total = await db.users.count_documents({})
+    query: Dict[str, Any] = {}
+    if search:
+        query["$or"] = [
+            {"name": {"$regex": search.strip(), "$options": "i"}},
+            {"email": {"$regex": search.strip(), "$options": "i"}},
+        ]
+    if role and role.upper() in ("FARMER", "ADMIN"):
+        query["role"] = role.upper()
+
+    total = await db.users.count_documents(query)
     skip = (page - 1) * limit
 
-    cursor = db.users.find({}, {"password_hash": 0}).sort("created_at", -1).skip(skip).limit(limit)
+    cursor = db.users.find(query, {"password_hash": 0}).sort("created_at", -1).skip(skip).limit(limit)
     users = []
     async for u in cursor:
         users.append({
@@ -73,7 +91,47 @@ async def list_registered_users(
         "users": users,
         "total": total,
         "page": page,
-        "limit": limit
+        "limit": limit,
+        "pages": (total + limit - 1) // limit if limit > 0 else 1,
+    }
+
+
+@router.put("/users/{user_id}/role", response_model=Dict[str, Any])
+async def update_user_role(
+    user_id: str,
+    payload: RoleUpdateRequest,
+    admin_user: dict = Depends(get_current_admin)
+):
+    """Toggle or assign user role between FARMER and ADMIN."""
+    db = get_database()
+    if user_id == admin_user["id"] and payload.role != "ADMIN":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot revoke your own ADMIN privileges while logged in."
+        )
+
+    try:
+        oid = ObjectId(user_id)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid user ID format")
+
+    target_user = await db.users.find_one({"_id": oid})
+    if not target_user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User account not found")
+
+    await db.users.update_one({"_id": oid}, {"$set": {"role": payload.role}})
+    await db.system_logs.insert_one({
+        "action": "USER_ROLE_UPDATED",
+        "user": admin_user.get("email", "admin"),
+        "crop": f"{target_user.get('email', '')} -> {payload.role}",
+        "timestamp": datetime.now(timezone.utc)
+    })
+
+    return {
+        "id": user_id,
+        "email": target_user.get("email", ""),
+        "role": payload.role,
+        "message": f"Updated user role to {payload.role}."
     }
 
 @router.get("/predictions", response_model=Dict[str, Any])
@@ -131,3 +189,70 @@ async def list_recent_system_logs(
             "timestamp": l.get("timestamp").isoformat() if l.get("timestamp") else ""
         })
     return logs
+
+
+@router.get("/feedback", response_model=Dict[str, Any])
+async def list_farmer_feedback(
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    min_rating: Optional[int] = Query(None, ge=1, le=5),
+    max_rating: Optional[int] = Query(None, ge=1, le=5),
+    admin_user: dict = Depends(get_current_admin)
+):
+    """Retrieve paginated farmer feedback ratings and qualitative comments with prediction context."""
+    db = get_database()
+    query: Dict[str, Any] = {}
+    rating_filter: Dict[str, Any] = {}
+    if min_rating is not None:
+        rating_filter["$gte"] = min_rating
+    if max_rating is not None:
+        rating_filter["$lte"] = max_rating
+    if rating_filter:
+        query["rating"] = rating_filter
+
+    total = await db.feedback.count_documents(query)
+    skip = (page - 1) * limit
+    cursor = db.feedback.find(query).sort("created_at", -1).skip(skip).limit(limit)
+    raw_items = await cursor.to_list(length=limit)
+
+    # Batch-lookup associated prediction crop/state context
+    pred_oids = []
+    for item in raw_items:
+        pid = item.get("prediction_id")
+        if pid and ObjectId.is_valid(pid):
+            pred_oids.append(ObjectId(pid))
+
+    pred_context: Dict[str, Dict[str, str]] = {}
+    if pred_oids:
+        pred_cursor = db.predictions.find({"_id": {"$in": pred_oids}}, {"input_features": 1, "predicted_yield": 1})
+        async for p in pred_cursor:
+            feats = p.get("input_features", {})
+            pred_context[str(p["_id"])] = {
+                "crop": feats.get("crop", "Unknown"),
+                "state": feats.get("state", "Unknown"),
+                "predicted_yield": p.get("predicted_yield")
+            }
+
+    items = []
+    for fb in raw_items:
+        pid = fb.get("prediction_id", "")
+        ctx = pred_context.get(pid, {})
+        items.append({
+            "id": str(fb["_id"]),
+            "prediction_id": pid,
+            "user_email": fb.get("user_email", "anonymous"),
+            "rating": fb.get("rating", 5),
+            "comment": fb.get("comment", ""),
+            "crop": ctx.get("crop"),
+            "state": ctx.get("state"),
+            "predicted_yield": ctx.get("predicted_yield"),
+            "created_at": fb.get("created_at").isoformat() if fb.get("created_at") else ""
+        })
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": (total + limit - 1) // limit if limit > 0 else 1,
+    }

@@ -289,8 +289,13 @@ async def get_feature_importance():
 # NEXT-LEVEL ADVANCED ENDPOINTS: Weather, Economics, Simulation, and Map
 # ==============================================================================
 
-from backend.app.services.weather_service import fetch_live_weather, STATE_COORDINATES
-from backend.app.services.simulation_service import calculate_farm_economics, run_what_if_simulation, MSP_RATES_INR_PER_QUINTAL
+from backend.app.services.weather_service import fetch_live_weather, resolve_nearest_state, STATE_COORDINATES
+from backend.app.services.simulation_service import (
+    calculate_farm_economics,
+    run_what_if_simulation,
+    recommend_top_crops,
+    MSP_RATES_INR_PER_QUINTAL,
+)
 from pydantic import BaseModel, Field
 
 class SimulationRequest(BaseModel):
@@ -303,10 +308,41 @@ class SimulationRequest(BaseModel):
     pesticide: float = Field(default=150.0, ge=0)
     crop_year: int = Field(default=2024)
 
+
+class CropRecommendationRequest(BaseModel):
+    state: str = Field(default="Punjab", min_length=2)
+    season: str = Field(default="Kharif", min_length=3)
+    area: float = Field(default=50.0, gt=0)
+    annual_rainfall: float = Field(default=650.0, ge=0)
+    fertilizer: float = Field(default=7500.0, ge=0)
+    pesticide: float = Field(default=175.0, ge=0)
+    crop_year: int = Field(default=2024, ge=1990, le=2035)
+    top_n: int = Field(default=5, ge=1, le=10)
+
 @router.get("/weather/live", response_model=Dict[str, Any])
-async def get_live_weather(state: str):
-    """Retrieve real-time Open-Meteo weather and precipitation benchmarks for a state."""
-    return fetch_live_weather(state)
+async def get_live_weather(
+    state: Optional[str] = Query(None, description="Indian state name"),
+    lat: Optional[float] = Query(None, ge=-90.0, le=90.0, description="GPS latitude"),
+    lon: Optional[float] = Query(None, ge=-180.0, le=180.0, description="GPS longitude")
+):
+    """Retrieve real-time Open-Meteo weather, 7-day forecast, and spray advisory."""
+    return fetch_live_weather(state=state, lat=lat, lon=lon)
+
+
+@router.get("/weather/locate", response_model=Dict[str, Any])
+async def locate_nearest_indian_state(
+    lat: float = Query(..., ge=-90.0, le=90.0),
+    lon: float = Query(..., ge=-180.0, le=180.0)
+):
+    """Resolve GPS coordinates to the nearest Indian state and IMD rainfall benchmark."""
+    nearest_state, geo, dist_km = resolve_nearest_state(lat, lon)
+    return {
+        "state": nearest_state,
+        "distance_km": dist_km,
+        "latitude": lat,
+        "longitude": lon,
+        "annual_rainfall_benchmark_mm": geo["rainfall"],
+    }
 
 @router.get("/economics/msp", response_model=Dict[str, Any])
 async def get_crop_economics(
@@ -335,6 +371,21 @@ async def simulate_what_if_scenarios(req: SimulationRequest):
         base_fertilizer_kg=req.fertilizer,
         base_pesticide_kg=req.pesticide,
         crop_year=req.crop_year
+    )
+
+
+@router.post("/recommend-crops", response_model=Dict[str, Any])
+async def recommend_top_profitable_crops(req: CropRecommendationRequest):
+    """Evaluate regional/seasonal candidate crops and rank Top-N by net MSP profit and yield."""
+    return recommend_top_crops(
+        state=req.state,
+        season=req.season,
+        area_ha=req.area,
+        annual_rainfall=req.annual_rainfall,
+        fertilizer_kg=req.fertilizer,
+        pesticide_kg=req.pesticide,
+        crop_year=req.crop_year,
+        top_n=req.top_n,
     )
 
 @router.get("/map/states", response_model=List[Dict[str, Any]])

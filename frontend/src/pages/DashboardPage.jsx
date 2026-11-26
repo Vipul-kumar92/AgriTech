@@ -23,7 +23,12 @@ import {
   Wind,
   Mic,
   MicOff,
-  X
+  X,
+  Navigation,
+  CloudRain,
+  AlertTriangle,
+  CheckCircle2,
+  CalendarDays
 } from 'lucide-react';
 
 const DEFAULT_STATES = [
@@ -55,6 +60,9 @@ const getCurrentAgroCycle = (isHindi) => {
 const getDynamicAdvisory = (weather, isHindi) => {
   if (!weather) {
     return null;
+  }
+  if (weather.spray_advisory) {
+    return isHindi ? weather.spray_advisory.advisory_hi : weather.spray_advisory.advisory_en;
   }
   const temp = Number(weather.temperature_c ?? weather.temperature_celsius ?? 28);
   const humidity = Number(weather.relative_humidity_pct ?? weather.relative_humidity_percent ?? 60);
@@ -93,8 +101,10 @@ const DashboardPage = () => {
   );
   const [liveWeather, setLiveWeather] = useState(null);
   const [weatherLoading, setWeatherLoading] = useState(false);
+  const [locatingGps, setLocatingGps] = useState(false);
   const [weatherError, setWeatherError] = useState('');
   const [loading, setLoading] = useState(true);
+  const skipNextWeatherFetchRef = useRef(false);
 
   // In-place Dashboard Voice Assistant state
   const [voiceOpen, setVoiceOpen] = useState(false);
@@ -215,6 +225,48 @@ const DashboardPage = () => {
     }
   };
 
+  const handleUseGpsLocation = () => {
+    if (!navigator.geolocation) {
+      setWeatherError(
+        isHindi ? 'इस ब्राउज़र में GPS लोकेशन समर्थित नहीं है।' : 'GPS location is not supported in this browser.'
+      );
+      return;
+    }
+
+    setLocatingGps(true);
+    setWeatherError('');
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await api.get('/weather/live', {
+            params: { lat: latitude, lon: longitude }
+          });
+          setLiveWeather(res.data);
+          if (res.data?.state && res.data.state !== selectedState) {
+            skipNextWeatherFetchRef.current = true;
+            localStorage.setItem('agritech_weather_state', res.data.state);
+            setSelectedState(res.data.state);
+          }
+        } catch (err) {
+          console.error('GPS weather lookup failed:', err);
+          setWeatherError(isHindi ? 'GPS से मौसम प्राप्त नहीं हो सका' : 'Failed to fetch weather from GPS location');
+        } finally {
+          setLocatingGps(false);
+        }
+      },
+      () => {
+        setWeatherError(
+          isHindi
+            ? 'GPS अनुमति अस्वीकृत या अनुपलब्ध — कृपया ऊपर से राज्य चुनें।'
+            : 'Location permission denied or unavailable — please choose your state manually.'
+        );
+        setLocatingGps(false);
+      },
+      { enableHighAccuracy: false, timeout: 8000 }
+    );
+  };
+
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
@@ -244,6 +296,10 @@ const DashboardPage = () => {
 
   useEffect(() => {
     localStorage.setItem('agritech_weather_state', selectedState);
+    if (skipNextWeatherFetchRef.current) {
+      skipNextWeatherFetchRef.current = false;
+      return;
+    }
     fetchLiveWeather(selectedState);
   }, [selectedState]);
 
@@ -491,6 +547,18 @@ const DashboardPage = () => {
               </select>
             </div>
 
+            {/* GPS Auto-Location Button */}
+            <button
+              type="button"
+              onClick={handleUseGpsLocation}
+              disabled={locatingGps}
+              className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-white/95 hover:bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold shadow-xs transition-colors disabled:opacity-60"
+              title={isHindi ? 'अपनी GPS लोकेशन से नजदीकी राज्य चुनें' : 'Detect nearest state via GPS'}
+            >
+              <Navigation className={`w-3.5 h-3.5 text-emerald-600 ${locatingGps ? 'animate-pulse' : ''}`} />
+              <span>{locatingGps ? (isHindi ? 'खोज...' : 'Locating...') : (isHindi ? 'मेरी GPS लोकेशन' : 'Use My GPS Location')}</span>
+            </button>
+
             {/* Refresh Button */}
             <button
               type="button"
@@ -577,14 +645,82 @@ const DashboardPage = () => {
           </div>
         </div>
 
-        {/* Daily Tip Alert */}
-        <div className="mt-4 p-3.5 rounded-xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border-l-4 border-emerald-500 text-xs text-slate-700 flex items-start space-x-2.5">
-          <Info className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
-          <div>
-            <strong className="text-emerald-900 font-bold">{t('advisory_tip_title', 'Agricultural Advisory for Today:')} </strong>
+        {/* Daily Tip & Spraying Warning Alert */}
+        <div
+          className={`mt-4 p-3.5 rounded-xl border-l-4 text-xs flex items-start space-x-2.5 ${
+            liveWeather?.spray_advisory?.spray_status === 'DELAY_SPRAY'
+              ? 'bg-red-50/90 border-red-500 text-red-900'
+              : liveWeather?.spray_advisory?.spray_status === 'CAUTION' || liveWeather?.spray_advisory?.spray_status === 'IRRIGATION_ALERT'
+                ? 'bg-amber-50/90 border-amber-500 text-amber-900'
+                : 'bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-transparent border-emerald-500 text-slate-700'
+          }`}
+        >
+          {liveWeather?.spray_advisory?.spray_status === 'DELAY_SPRAY' || liveWeather?.spray_advisory?.spray_status === 'CAUTION' ? (
+            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+          ) : (
+            <Info className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+          )}
+          <div className="flex-1">
+            <strong className="font-bold">
+              {liveWeather?.spray_advisory?.spray_status === 'DELAY_SPRAY'
+                ? (isHindi ? 'छिड़काव एवं वर्षा चेतावनी: ' : 'Spraying & Rain Warning: ')
+                : t('advisory_tip_title', 'Agricultural Advisory for Today: ')}{' '}
+            </strong>
             <span>{dynamicAdvisory || t('advisory_tip_content', 'Recommended: Maintain optimal NPK nitrogen balance and monitor soil moisture prior to grain filling.')}</span>
           </div>
         </div>
+
+        {/* 7-Day Agro-Weather Forecast Strip */}
+        {Array.isArray(liveWeather?.forecast_7_days) && liveWeather.forecast_7_days.length > 0 && (
+          <div className="mt-4 pt-3.5 border-t border-emerald-100/80 space-y-2.5">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex items-center space-x-1.5 font-bold text-slate-800">
+                <CalendarDays className="w-4 h-4 text-emerald-600" />
+                <span>{isHindi ? '7-दिवसीय वर्षा एवं तापमान पूर्वानुमान' : '7-Day Rain & Temperature Forecast'}</span>
+              </div>
+              <div className="flex items-center space-x-3 text-[11px] font-semibold text-slate-600">
+                <span>
+                  {isHindi ? 'अगले 3 दिन वर्षा:' : 'Next 3d Rain:'}{' '}
+                  <strong className="text-sky-700">{liveWeather.spray_advisory?.next_3_days_rain_mm ?? 0} mm</strong>
+                </span>
+                <span>
+                  {isHindi ? 'साप्ताहिक योग:' : '7-Day Total:'}{' '}
+                  <strong className="text-emerald-700">{liveWeather.spray_advisory?.weekly_rain_total_mm ?? 0} mm</strong>
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
+              {liveWeather.forecast_7_days.map((day) => {
+                const isWet = Number(day.precipitation_mm) >= 5 || Number(day.precipitation_prob_pct) >= 60;
+                return (
+                  <div
+                    key={day.date}
+                    className={`rounded-xl p-2.5 border text-center transition-colors ${
+                      isWet
+                        ? 'bg-sky-50/90 border-sky-200'
+                        : 'bg-white/85 border-emerald-100'
+                    }`}
+                  >
+                    <div className="text-[11px] font-extrabold text-slate-800">{day.day_label}</div>
+                    <div className="text-[10px] text-slate-500 truncate mb-1" title={day.weather_description}>
+                      {day.weather_description}
+                    </div>
+                    <div className="text-xs font-black text-slate-900">
+                      {day.temp_max_c}° <span className="text-slate-400 font-semibold">/ {day.temp_min_c}°</span>
+                    </div>
+                    <div className={`mt-1 inline-flex items-center justify-center space-x-1 text-[10px] font-bold ${
+                      isWet ? 'text-sky-700' : 'text-slate-500'
+                    }`}>
+                      <CloudRain className="w-3 h-3" />
+                      <span>{day.precipitation_mm}mm ({day.precipitation_prob_pct}%)</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ========================================================================= */}

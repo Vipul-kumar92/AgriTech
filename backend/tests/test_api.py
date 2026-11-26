@@ -265,3 +265,152 @@ def test_update_user_profile():
         assert clear_res.status_code == 200
         assert clear_res.json()["picture"] is None
 
+
+def test_crop_recommender_endpoint():
+    """Verify Top-5 profitable crop recommender returns ranked profit & yield winners."""
+    with TestClient(app) as tc:
+        res = tc.post("/api/recommend-crops", json={
+            "state": "Punjab",
+            "season": "Kharif",
+            "area": 50.0,
+            "annual_rainfall": 650.0,
+            "fertilizer": 7500.0,
+            "pesticide": 175.0,
+            "top_n": 5
+        })
+        assert res.status_code == 200
+        data = res.json()
+        assert data["state"] == "Punjab"
+        assert data["season"] == "Kharif"
+        assert data["evaluated_crops_count"] >= 5
+        assert len(data["recommendations"]) == 5
+        assert data["best_profit_crop"]["estimated_net_return_inr"] >= data["recommendations"][1]["estimated_net_return_inr"]
+        assert data["best_yield_crop"]["predicted_yield_t_ha"] >= data["best_profit_crop"]["predicted_yield_t_ha"] or data["is_same_winner"]
+        assert any(item["crop"] == data["best_yield_crop"]["crop"] for item in data["comparison_chart"])
+
+
+def test_weather_7day_and_gps_locate():
+    """Verify 7-day weather forecast, spray advisory, and GPS nearest-state resolution."""
+    with TestClient(app) as tc:
+        loc_res = tc.get("/api/weather/locate?lat=30.9010&lon=75.8573")
+        assert loc_res.status_code == 200
+        loc = loc_res.json()
+        assert loc["state"] == "Punjab"
+
+        w_res = tc.get("/api/weather/live?lat=30.9010&lon=75.8573")
+        assert w_res.status_code == 200
+        weather = w_res.json()
+        assert weather["state"] == "Punjab"
+        assert weather["detected_via_gps"] is True
+        assert isinstance(weather["forecast_7_days"], list)
+        assert len(weather["forecast_7_days"]) == 7
+        assert "spray_status" in weather["spray_advisory"]
+        assert "advisory_hi" in weather["spray_advisory"]
+
+
+def test_prediction_history_economics_and_delete():
+    """Verify prediction history includes MSP economics and user can delete their own prediction."""
+    import time
+    unique_email = f"hist_del_{int(time.time())}@agritech.com"
+    with TestClient(app) as tc:
+        reg_res = tc.post("/api/auth/register", json={
+            "name": "History Tester",
+            "email": unique_email,
+            "password": "Password@123"
+        })
+        assert reg_res.status_code == 201
+        headers = {"Authorization": f"Bearer {reg_res.json()['access_token']}"}
+
+        pred_res = tc.post("/api/predict", json={
+            "crop": "Rice",
+            "season": "Kharif",
+            "state": "Punjab",
+            "area": 10.0,
+            "annual_rainfall": 650.0,
+            "fertilizer": 1500.0,
+            "pesticide": 35.0,
+            "crop_year": 2024
+        }, headers=headers)
+        assert pred_res.status_code == 200
+        pred_id = pred_res.json()["prediction_id"]
+
+        hist_res = tc.get("/api/predictions", headers=headers)
+        assert hist_res.status_code == 200
+        items = hist_res.json()["items"]
+        assert len(items) == 1
+        assert items[0]["id"] == pred_id
+        assert items[0]["estimated_net_return_inr"] > 0
+
+        del_res = tc.delete(f"/api/predictions/{pred_id}", headers=headers)
+        assert del_res.status_code == 200
+        assert del_res.json()["deleted"] is True
+
+        hist_after = tc.get("/api/predictions", headers=headers)
+        assert hist_after.status_code == 200
+        assert len(hist_after.json()["items"]) == 0
+
+
+def test_admin_feedback_inbox_and_user_role_toggle():
+    """Verify admin feedback inbox listing, user search filter, and role toggle endpoint."""
+    import time
+    unique_farmer = f"role_toggle_{int(time.time())}@agritech.com"
+    with TestClient(app) as tc:
+        # 1. Farmer registers and submits feedback on a prediction
+        farmer_reg = tc.post("/api/auth/register", json={
+            "name": "Role Candidate",
+            "email": unique_farmer,
+            "password": "Password@123"
+        })
+        assert farmer_reg.status_code == 201
+        farmer_id = farmer_reg.json()["user"]["id"]
+        farmer_headers = {"Authorization": f"Bearer {farmer_reg.json()['access_token']}"}
+
+        pred = tc.post("/api/predict", json={
+            "crop": "Wheat",
+            "season": "Rabi",
+            "state": "Punjab",
+            "area": 5.0,
+            "annual_rainfall": 600.0,
+            "fertilizer": 650.0,
+            "pesticide": 15.0,
+            "crop_year": 2024
+        }, headers=farmer_headers)
+        assert pred.status_code == 200
+        pred_id = pred.json()["prediction_id"]
+
+        fb = tc.post("/api/feedback", json={
+            "prediction_id": pred_id,
+            "rating": 5,
+            "comment": "Very accurate wheat estimate!"
+        }, headers=farmer_headers)
+        assert fb.status_code == 201
+
+        # 2. Admin logs in and checks Feedback Inbox & Users search/toggle
+        admin_login = tc.post("/api/auth/login", json={
+            "email": "admin@agritech.com",
+            "password": "Admin@12345"
+        })
+        assert admin_login.status_code == 200
+        admin_headers = {"Authorization": f"Bearer {admin_login.json()['access_token']}"}
+
+        fb_inbox = tc.get("/api/admin/feedback?min_rating=5", headers=admin_headers)
+        assert fb_inbox.status_code == 200
+        fb_items = fb_inbox.json()["items"]
+        assert any(item["prediction_id"] == pred_id and item["crop"] == "Wheat" for item in fb_items)
+
+        users_res = tc.get(f"/api/admin/users?search={unique_farmer}", headers=admin_headers)
+        assert users_res.status_code == 200
+        assert users_res.json()["total"] == 1
+
+        toggle_res = tc.put(f"/api/admin/users/{farmer_id}/role", json={"role": "ADMIN"}, headers=admin_headers)
+        assert toggle_res.status_code == 200
+        assert toggle_res.json()["role"] == "ADMIN"
+
+        revert_res = tc.put(f"/api/admin/users/{farmer_id}/role", json={"role": "FARMER"}, headers=admin_headers)
+        assert revert_res.status_code == 200
+        assert revert_res.json()["role"] == "FARMER"
+
+
+
+
+

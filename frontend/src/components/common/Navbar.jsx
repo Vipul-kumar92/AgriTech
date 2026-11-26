@@ -8,13 +8,9 @@ import {
   LogIn,
   UserPlus,
   LogOut,
-  User,
-  LayoutDashboard,
-  Shield,
   Map,
   SlidersHorizontal,
   Home,
-  Sparkles,
   Menu,
   X,
   Info
