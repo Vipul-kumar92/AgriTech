@@ -282,47 +282,21 @@ const DashboardPage = () => {
 
         {/* Content Container: Clean Unified Hero Layout */}
         <div className="relative z-10 p-6 sm:p-8 md:p-9 space-y-4">
-          {/* Header Row: Title + Subtle Farmer Pill */}
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-2 max-w-3xl">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-tight drop-shadow-sm">
-                {t('dashboard_title', 'KrishiPulse.AI Workspace')}
-              </h1>
+          <div className="space-y-2 max-w-3xl">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-tight drop-shadow-sm">
+              {t('dashboard_title', 'KrishiPulse.AI Workspace')}
+            </h1>
 
-              <p className="text-xs sm:text-base text-emerald-50/90 font-normal leading-relaxed">
-                {recentPredictions.length === 0
-                  ? (isHindi ? 'स्वागत है' : 'Welcome')
-                  : t('welcome_back', 'Welcome back')}
-                ,{' '}
-                <span className="font-bold text-amber-300 bg-amber-400/15 px-2.5 py-0.5 rounded-lg border border-amber-300/30">
-                  {user?.name || (isHindi ? 'किसान' : 'Farmer')}
-                </span>
-                . {t('dashboard_subtitle', 'Real-time predictive agriculture insights & empirical farm intelligence.')}
-              </p>
-            </div>
-
-            <Link
-              to="/profile"
-              className="inline-flex items-center space-x-2.5 px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/25 transition-colors flex-shrink-0"
-            >
-              {user?.picture ? (
-                <img
-                  src={user.picture}
-                  alt={user.name || 'Farmer'}
-                  className="w-6 h-6 rounded-full border border-emerald-300/70 object-cover bg-white"
-                />
-              ) : (
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-emerald-950 font-black text-[10px] flex items-center justify-center">
-                  {(user?.name || 'F').charAt(0).toUpperCase()}
-                </div>
-              )}
-              <span className="text-xs font-bold text-white max-w-[140px] truncate">
+            <p className="text-xs sm:text-base text-emerald-50/90 font-normal leading-relaxed">
+              {recentPredictions.length === 0
+                ? (isHindi ? 'स्वागत है' : 'Welcome')
+                : t('welcome_back', 'Welcome back')}
+              ,{' '}
+              <span className="font-bold text-amber-300 bg-amber-400/15 px-2.5 py-0.5 rounded-lg border border-amber-300/30">
                 {user?.name || (isHindi ? 'किसान' : 'Farmer')}
               </span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200 border-l border-white/20 pl-2">
-                {user?.role || 'FARMER'}
-              </span>
-            </Link>
+              . {t('dashboard_subtitle', 'Real-time predictive agriculture insights & empirical farm intelligence.')}
+            </p>
           </div>
 
           {/* Unified Single-Row Action Bar */}

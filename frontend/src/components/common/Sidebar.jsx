@@ -8,7 +8,6 @@ import {
   BarChart3,
   Map,
   SlidersHorizontal,
-  User,
   X
 } from 'lucide-react';
 
@@ -36,7 +35,7 @@ const Sidebar = ({ isOpen, onClose }) => {
       <aside
         className={`fixed top-16 bottom-0 left-0 z-40 w-64 bg-white/85 backdrop-blur-xl border-r border-emerald-100/90 transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        } flex flex-col justify-between overflow-y-auto`}
+        } flex flex-col overflow-y-auto`}
       >
         <div className="p-4 space-y-6">
           {/* Close button on mobile */}
@@ -77,13 +76,6 @@ const Sidebar = ({ isOpen, onClose }) => {
               <span>{isHindi ? 'कृषि विश्लेषण' : 'Agri Analytics'}</span>
             </NavLink>
           </div>
-        </div>
-
-        <div className="p-4 border-t border-emerald-100/80">
-          <NavLink to="/profile" onClick={onClose} className={navItemClass}>
-            <User className="w-4 h-4 flex-shrink-0" />
-            <span>{isHindi ? 'प्रोफ़ाइल व सेटिंग्स' : 'Profile & Account'}</span>
-          </NavLink>
         </div>
       </aside>
     </>

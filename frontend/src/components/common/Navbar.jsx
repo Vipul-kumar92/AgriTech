@@ -111,7 +111,7 @@ const Navbar = ({ onToggleSidebar }) => {
             <div className="flex items-center space-x-1.5 sm:space-x-2 pl-2 border-l border-emerald-200/80">
               <Link
                 to="/profile"
-                className="flex items-center p-1 rounded-full hover:bg-emerald-100/80 border border-transparent hover:border-emerald-200 transition-all"
+                className="inline-flex items-center space-x-2 p-1 sm:pr-3 rounded-full bg-white/75 hover:bg-white border border-emerald-200/80 hover:border-emerald-300 shadow-xs transition-all"
                 title={user?.name ? `${user.name} (${t('profile', 'Profile')})` : t('profile', 'Profile')}
                 aria-label="View Profile"
               >
@@ -119,13 +119,19 @@ const Navbar = ({ onToggleSidebar }) => {
                   <img
                     src={user.picture}
                     alt={user.name || 'Profile'}
-                    className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-400/70 shadow-sm bg-white"
+                    className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-400/70 shadow-sm bg-white flex-shrink-0"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-extrabold flex items-center justify-center text-xs shadow-sm ring-2 ring-emerald-300/80">
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white font-extrabold flex items-center justify-center text-xs shadow-sm ring-2 ring-emerald-300/80 flex-shrink-0">
                     {user?.name?.charAt(0).toUpperCase() || 'U'}
                   </div>
                 )}
+                <span className="hidden sm:inline text-xs font-bold text-slate-800 max-w-[140px] truncate">
+                  {user?.name || (isHindi ? 'किसान' : 'Farmer')}
+                </span>
+                <span className="hidden md:inline text-[10px] font-bold uppercase tracking-wider text-emerald-700 border-l border-emerald-200 pl-2">
+                  {user?.role || 'FARMER'}
+                </span>
               </Link>
 
               <button
