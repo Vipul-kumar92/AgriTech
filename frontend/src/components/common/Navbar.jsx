@@ -48,7 +48,7 @@ const Navbar = ({ onToggleSidebar }) => {
           )}
 
           <BrandLogo
-            to="/"
+            to={isAuthenticated ? '/dashboard' : '/'}
             subtitle={isHindi ? 'सटीक स्मार्ट कृषि' : 'Precision Agriculture'}
           />
         </div>
