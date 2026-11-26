@@ -33,21 +33,86 @@ import {
 
 // Bounding box projection for Indian subcontinent
 const projectCoordinates = (lat, lon) => {
-  const minLat = 7.5;
-  const maxLat = 37.2;
-  const minLon = 68.0;
-  const maxLon = 97.5;
+  const minLat = 6.8;
+  const maxLat = 37.6;
+  const minLon = 67.8;
+  const maxLon = 97.8;
 
   const width = 640;
-  const height = 690;
+  const height = 680;
   const offsetX = 60;
-  const offsetY = 50;
+  const offsetY = 40;
 
   const x = ((lon - minLon) / (maxLon - minLon)) * width + offsetX;
   const y = ((maxLat - lat) / (maxLat - minLat)) * height + offsetY;
 
   return { x: Math.round(x), y: Math.round(y) };
 };
+
+// Geographic border waypoints (lat, lon) projected through the exact same function so every state aligns accurately
+const INDIA_BOUNDARY_COORDS = [
+  // North / J&K / Ladakh
+  [35.5, 74.0], [36.9, 75.2], [35.6, 77.8], [34.4, 79.1], [32.7, 78.9],
+  // Himachal / Uttarakhand / Nepal border
+  [31.4, 78.7], [30.6, 80.2], [29.1, 80.3], [28.0, 81.5], [27.4, 83.4], [26.8, 85.8], [26.5, 88.1],
+  // Sikkim
+  [27.2, 88.1], [28.0, 88.6], [27.2, 89.0],
+  // Bhutan border & Arunachal Pradesh
+  [26.8, 89.8], [26.9, 92.1], [27.8, 92.9], [29.1, 95.3], [28.1, 97.1], [27.2, 96.2],
+  // Nagaland / Manipur / Mizoram
+  [26.2, 95.2], [24.8, 94.7], [23.8, 93.4], [22.1, 93.1], [22.6, 92.3],
+  // Tripura / Meghalaya / Bangladesh wrap
+  [23.8, 92.2], [24.1, 91.2], [25.1, 92.3], [25.2, 90.0], [26.0, 89.8], [26.3, 88.8], [25.2, 88.9], [24.1, 88.8],
+  // West Bengal coast -> Odisha -> Andhra -> Tamil Nadu
+  [21.6, 88.2], [21.5, 87.1], [20.2, 86.6], [19.1, 84.8], [17.7, 83.3], [16.5, 82.2], [15.5, 80.3],
+  [13.1, 80.3], [11.9, 79.8], [10.3, 79.9], [9.2, 79.3], [8.1, 77.5],
+  // Kerala -> Karnataka -> Goa -> Maharashtra coast
+  [8.5, 76.9], [10.0, 76.2], [11.9, 75.3], [13.0, 74.8], [15.3, 73.9], [17.0, 73.3], [19.1, 72.8], [20.8, 72.8],
+  // Gujarat (Khambhat, Saurashtra, Kutch) -> Rajasthan -> Punjab
+  [21.6, 72.5], [20.7, 70.9], [22.3, 69.0], [22.9, 70.2], [23.7, 68.5], [24.5, 70.8],
+  [26.9, 70.1], [28.0, 71.8], [30.1, 73.8], [32.3, 74.6], [33.5, 74.0], [34.5, 73.8]
+];
+
+const INDIA_SVG_PATH =
+  INDIA_BOUNDARY_COORDS.map(([lat, lon], idx) => {
+    const { x, y } = projectCoordinates(lat, lon);
+    return `${idx === 0 ? 'M' : 'L'} ${x},${y}`;
+  }).join(' ') + ' Z';
+
+const STATE_CODES = {
+  'Andhra Pradesh': 'AP',
+  'Arunachal Pradesh': 'AR',
+  Assam: 'AS',
+  Bihar: 'BR',
+  Chhattisgarh: 'CG',
+  Goa: 'GA',
+  Gujarat: 'GJ',
+  Haryana: 'HR',
+  'Himachal Pradesh': 'HP',
+  'Jammu and Kashmir': 'JK',
+  Jharkhand: 'JH',
+  Karnataka: 'KA',
+  Kerala: 'KL',
+  'Madhya Pradesh': 'MP',
+  Maharashtra: 'MH',
+  Manipur: 'MN',
+  Meghalaya: 'ML',
+  Mizoram: 'MZ',
+  Nagaland: 'NL',
+  Odisha: 'OR',
+  Puducherry: 'PY',
+  Punjab: 'PB',
+  Rajasthan: 'RJ',
+  Sikkim: 'SK',
+  'Tamil Nadu': 'TN',
+  Telangana: 'TG',
+  Tripura: 'TR',
+  'Uttar Pradesh': 'UP',
+  Uttarakhand: 'UK',
+  'West Bengal': 'WB',
+};
+
+const getStateCode = (name = '') => STATE_CODES[name] || name.slice(0, 2).toUpperCase();
 
 const AgriMapPage = () => {
   const navigate = useNavigate();
@@ -81,13 +146,14 @@ const AgriMapPage = () => {
 
   // National agricultural summary metrics
   const nationalStats = useMemo(() => {
-    if (!states.length) return { avgYield: 0, topState: null, topRainState: null, totalRecords: 0 };
+    if (!states.length) return { avgYield: 0, maxYield: 12, topState: null, topRainState: null, totalRecords: 0 };
     const totalYield = states.reduce((sum, s) => sum + s.average_yield, 0);
     const avgYield = +(totalYield / states.length).toFixed(2);
+    const maxYield = Math.max(...states.map((s) => s.average_yield), 12);
     const topState = [...states].sort((a, b) => b.average_yield - a.average_yield)[0];
     const topRainState = [...states].sort((a, b) => b.average_rainfall_mm - a.average_rainfall_mm)[0];
     const totalRecords = states.reduce((sum, s) => sum + s.records_count, 0);
-    return { avgYield, topState, topRainState, totalRecords };
+    return { avgYield, maxYield, topState, topRainState, totalRecords };
   }, [states]);
 
   const filteredStates = useMemo(() => {
@@ -206,7 +272,7 @@ const AgriMapPage = () => {
             {nationalStats.topState ? (isHindi ? translateState(nationalStats.topState.state) : nationalStats.topState.state) : '—'}
           </p>
           <span className="text-[10px] sm:text-[11px] text-amber-600 font-semibold mt-1 block truncate">
-            {nationalStats.topState?.average_yield} t/ha • {nationalStats.topState ? (isHindi ? translateCrop(nationalStats.topState.topCrop) : nationalStats.topState.top_crop) : ''}
+            {nationalStats.topState?.average_yield} t/ha • {nationalStats.topState ? (isHindi ? translateCrop(nationalStats.topState.top_crop) : nationalStats.topState.top_crop) : ''}
           </span>
         </div>
 
@@ -288,8 +354,8 @@ const AgriMapPage = () => {
 
         {/* Search Input & Metric Mode */}
         <div className="flex items-center space-x-3 w-full md:w-auto">
-          {viewMode === 'map' && (
-            <div className="flex items-center text-xs bg-slate-100 rounded-xl p-1 border border-slate-200">
+          {(viewMode === 'map' || viewMode === 'leaderboard') && (
+            <div className="flex items-center text-xs bg-slate-100 rounded-xl p-1 border border-slate-200 flex-shrink-0">
               <button
                 onClick={() => setMetricMode('yield')}
                 className={`px-2.5 py-1 rounded-lg font-bold transition-all ${
@@ -386,150 +452,181 @@ const AgriMapPage = () => {
                     </filter>
                   </defs>
 
-                  {/* Stylized Silhouette Contour of Indian Subcontinent */}
+                  {/* Coordinate-Projected Silhouette Contour of India */}
                   <path
-                    d="M 230,120 L 290,105 L 340,140 L 400,165 L 430,225 L 520,250 L 590,260 L 630,290 L 580,340 L 520,340 L 480,380 L 470,440 L 410,500 L 370,550 L 320,640 L 280,680 L 250,650 L 240,580 L 210,510 L 170,470 L 140,430 L 120,380 L 150,330 L 190,270 L 220,180 Z"
-                    fill="rgba(15, 23, 42, 0.65)"
-                    stroke="rgba(51, 65, 85, 0.45)"
-                    strokeWidth="1.5"
+                    d={INDIA_SVG_PATH}
+                    fill="rgba(16, 185, 129, 0.08)"
+                    stroke="rgba(52, 211, 153, 0.45)"
+                    strokeWidth="2"
+                    strokeLinejoin="round"
+                  />
+
+                  {/* Subtle Tropic of Cancer & Meridian Reference Lines */}
+                  <line
+                    x1="60"
+                    y1={projectCoordinates(23.5, 78).y}
+                    x2="700"
+                    y2={projectCoordinates(23.5, 78).y}
+                    stroke="rgba(148, 163, 184, 0.14)"
+                    strokeWidth="1"
+                    strokeDasharray="4 4"
+                  />
+                  <line
+                    x1={projectCoordinates(23.5, 82.5).x}
+                    y1="40"
+                    x2={projectCoordinates(23.5, 82.5).x}
+                    y2="720"
+                    stroke="rgba(148, 163, 184, 0.14)"
+                    strokeWidth="1"
                     strokeDasharray="4 4"
                   />
 
-                  {/* Connecting Agro-climatic Region Lines */}
-                  {filteredStates.map((s, idx) => {
-                    if (idx % 3 !== 0 || idx >= filteredStates.length - 1) return null;
-                    const next = filteredStates[idx + 1];
-                    const p1 = projectCoordinates(s.latitude, s.longitude);
-                    const p2 = projectCoordinates(next.latitude, next.longitude);
-                    return (
-                      <line
-                        key={`link-${s.state}-${next.state}`}
-                        x1={p1.x}
-                        y1={p1.y}
-                        x2={p2.x}
-                        y2={p2.y}
-                        stroke="rgba(16, 185, 129, 0.12)"
-                        strokeWidth="1"
-                        strokeDasharray="2 2"
-                      />
-                    );
-                  })}
-
-                  {/* Interactive State Nodes */}
-                  {filteredStates.map((s) => {
-                    const pos = projectCoordinates(s.latitude, s.longitude);
-                    const isSelected = selectedState?.state === s.state;
-                    const isHovered = hoveredState?.state === s.state;
-                    const isTopYield = s.average_yield >= 7.0;
-
-                    // Dynamic Radius based on metric
-                    const radius =
+                  {/* Interactive State Nodes (largest drawn first so smaller neighboring states remain clickable) */}
+                  {[...filteredStates]
+                    .sort((a, b) =>
                       metricMode === 'yield'
-                        ? Math.min(22, Math.max(9, Math.round(s.average_yield * 1.8)))
-                        : Math.min(22, Math.max(9, Math.round(s.average_rainfall_mm / 140)));
+                        ? b.average_yield - a.average_yield
+                        : b.average_rainfall_mm - a.average_rainfall_mm
+                    )
+                    .map((s) => {
+                      const pos = projectCoordinates(s.latitude, s.longitude);
+                      const isSelected = selectedState?.state === s.state;
+                      const isHovered = hoveredState?.state === s.state;
+                      const isTopYield = s.average_yield >= 7.0;
 
-                    // Dynamic Color
-                    const nodeColor =
-                      s.average_yield >= 6.0 ? '#10b981' : s.average_yield >= 2.5 ? '#0ea5e9' : '#f59e0b';
+                      const radius =
+                        metricMode === 'yield'
+                          ? Math.min(18, Math.max(8, Math.round(7 + Math.sqrt(s.average_yield) * 2.3)))
+                          : Math.min(18, Math.max(8, Math.round(7 + s.average_rainfall_mm / 320)));
 
-                    return (
-                      <g
-                        key={s.state}
-                        className="cursor-pointer transition-transform duration-200"
-                        onClick={() => setSelectedState(s)}
-                        onMouseEnter={() => setHoveredState(s)}
-                        onMouseLeave={() => setHoveredState(null)}
-                      >
-                        {/* Invisible expanded tap target circle for effortless mobile finger tapping */}
-                        <circle
-                          cx={pos.x}
-                          cy={pos.y}
-                          r={Math.max(22, radius + 8)}
-                          fill="transparent"
-                        />
+                      const nodeColor =
+                        s.average_yield >= 6.0 ? '#10b981' : s.average_yield >= 2.5 ? '#0ea5e9' : '#f59e0b';
 
-                        {/* Pulse Ring for high producing regions */}
-                        {isTopYield && (
-                          <circle
-                            cx={pos.x}
-                            cy={pos.y}
-                            r={radius + 8}
-                            fill="none"
-                            stroke={nodeColor}
-                            strokeWidth="1.5"
-                            opacity="0.3"
-                            className="animate-ping"
-                          />
-                        )}
-
-                        {/* Outer Selection Highlight Ring */}
-                        {(isSelected || isHovered) && (
-                          <circle
-                            cx={pos.x}
-                            cy={pos.y}
-                            r={radius + 6}
-                            fill="none"
-                            stroke="#ffffff"
-                            strokeWidth="2"
-                            strokeDasharray={isSelected ? 'none' : '3 3'}
-                            filter="url(#glowEffect)"
-                          />
-                        )}
-
-                        {/* Main Node Circle */}
-                        <circle
-                          cx={pos.x}
-                          cy={pos.y}
-                          r={radius}
-                          fill={nodeColor}
-                          opacity={isSelected || isHovered ? 1 : 0.85}
-                          stroke="#ffffff"
-                          strokeWidth={isSelected ? '2.5' : '1.5'}
-                          filter="url(#glowEffect)"
-                        />
-
-                        {/* State Abbreviation inside bubble */}
-                        <text
-                          x={pos.x}
-                          y={pos.y + 3.5}
-                          textAnchor="middle"
-                          fill="#ffffff"
-                          fontSize={radius > 14 ? '9' : '8'}
-                          fontWeight="bold"
-                          className="pointer-events-none select-none font-mono"
+                      return (
+                        <g
+                          key={s.state}
+                          className="cursor-pointer"
+                          onClick={() => setSelectedState(s)}
+                          onMouseEnter={() => setHoveredState(s)}
+                          onMouseLeave={() => setHoveredState(null)}
                         >
-                          {s.state.slice(0, 2).toUpperCase()}
-                        </text>
+                          {/* Invisible expanded tap target */}
+                          <circle
+                            cx={pos.x}
+                            cy={pos.y}
+                            r={Math.max(20, radius + 7)}
+                            fill="transparent"
+                          />
 
-                        {/* Interactive Floating Label on Hover or Active Selection */}
-                        {(isSelected || isHovered) && (
-                          <g className="pointer-events-none">
-                            <rect
-                              x={pos.x - 55}
-                              y={pos.y - radius - 32}
-                              width="110"
-                              height="26"
-                              rx="8"
-                              fill="#0f172a"
+                          {/* Pulse Ring with fill-box origin so it stays centered on the node */}
+                          {isTopYield && (
+                            <circle
+                              cx={pos.x}
+                              cy={pos.y}
+                              r={radius + 6}
+                              fill="none"
                               stroke={nodeColor}
                               strokeWidth="1.5"
+                              opacity="0.35"
+                              style={{ transformOrigin: 'center', transformBox: 'fill-box' }}
+                              className="animate-ping"
+                            />
+                          )}
+
+                          {/* Outer Selection Highlight Ring */}
+                          {(isSelected || isHovered) && (
+                            <circle
+                              cx={pos.x}
+                              cy={pos.y}
+                              r={radius + 5}
+                              fill="none"
+                              stroke="#ffffff"
+                              strokeWidth="2"
+                              strokeDasharray={isSelected ? 'none' : '3 3'}
                               filter="url(#glowEffect)"
                             />
-                            <text
-                              x={pos.x}
-                              y={pos.y - radius - 15}
-                              textAnchor="middle"
-                              fill="#ffffff"
-                              fontSize="10"
-                              fontWeight="bold"
-                            >
-                              {s.state}: {s.average_yield} t/ha
-                            </text>
-                          </g>
-                        )}
+                          )}
+
+                          {/* Main Node Circle */}
+                          <circle
+                            cx={pos.x}
+                            cy={pos.y}
+                            r={radius}
+                            fill={nodeColor}
+                            opacity={isSelected || isHovered ? 1 : 0.88}
+                            stroke="#ffffff"
+                            strokeWidth={isSelected ? '2.5' : '1.4'}
+                            filter="url(#glowEffect)"
+                          />
+
+                          {/* Unique State Code inside bubble */}
+                          <text
+                            x={pos.x}
+                            y={pos.y + 3}
+                            textAnchor="middle"
+                            fill="#ffffff"
+                            fontSize={radius >= 13 ? '8.5' : '7.5'}
+                            fontWeight="bold"
+                            className="pointer-events-none select-none font-mono"
+                          >
+                            {getStateCode(s.state)}
+                          </text>
+                        </g>
+                      );
+                    })}
+
+                  {/* Dedicated Topmost Floating Tooltip Layer (never obscured by neighboring nodes or clipped) */}
+                  {(() => {
+                    const activeNode = hoveredState || selectedState;
+                    if (!activeNode || !filteredStates.some((st) => st.state === activeNode.state)) return null;
+                    const pos = projectCoordinates(activeNode.latitude, activeNode.longitude);
+                    const radius =
+                      metricMode === 'yield'
+                        ? Math.min(18, Math.max(8, Math.round(7 + Math.sqrt(activeNode.average_yield) * 2.3)))
+                        : Math.min(18, Math.max(8, Math.round(7 + activeNode.average_rainfall_mm / 320)));
+                    const nodeColor =
+                      activeNode.average_yield >= 6.0
+                        ? '#10b981'
+                        : activeNode.average_yield >= 2.5
+                        ? '#0ea5e9'
+                        : '#f59e0b';
+                    const displayStateName = isHindi ? translateState(activeNode.state) : activeNode.state;
+                    const metricText =
+                      metricMode === 'yield'
+                        ? `${activeNode.average_yield} t/ha`
+                        : `${activeNode.average_rainfall_mm} mm`;
+                    const label = `${displayStateName}: ${metricText}`;
+                    const boxWidth = Math.max(128, Math.min(240, label.length * 6.8 + 22));
+                    const clampedX = Math.max(boxWidth / 2 + 10, Math.min(750 - boxWidth / 2, pos.x));
+                    const showBelow = pos.y - radius - 40 < 16;
+                    const boxY = showBelow ? pos.y + radius + 10 : pos.y - radius - 36;
+
+                    return (
+                      <g className="pointer-events-none">
+                        <rect
+                          x={clampedX - boxWidth / 2}
+                          y={boxY}
+                          width={boxWidth}
+                          height="28"
+                          rx="9"
+                          fill="rgba(15, 23, 42, 0.96)"
+                          stroke={nodeColor}
+                          strokeWidth="1.6"
+                          filter="url(#glowEffect)"
+                        />
+                        <text
+                          x={clampedX}
+                          y={boxY + 17.5}
+                          textAnchor="middle"
+                          fill="#ffffff"
+                          fontSize="10.5"
+                          fontWeight="bold"
+                        >
+                          {label}
+                        </text>
                       </g>
                     );
-                  })}
+                  })()}
                 </svg>
               </div>
 
@@ -644,12 +741,14 @@ const AgriMapPage = () => {
                   <BarChart
                     data={leaderboardData}
                     layout="vertical"
-                    margin={{ top: 10, right: 30, left: 60, bottom: 10 }}
+                    margin={{ top: 10, right: 24, left: 10, bottom: 10 }}
                   >
-                    <XAxis type="number" domain={[0, 'auto']} />
+                    <XAxis type="number" domain={[0, 'auto']} tick={{ fontSize: 11, fill: '#64748b' }} />
                     <YAxis
                       dataKey="state"
                       type="category"
+                      width={130}
+                      tickFormatter={(val) => (isHindi ? translateState(val) : val)}
                       tick={{ fill: '#334155', fontSize: 11, fontWeight: 600 }}
                     />
                     <RechartsTooltip
@@ -808,13 +907,17 @@ const AgriMapPage = () => {
             {/* Yield Progress Bar Meter */}
             <div>
               <div className="flex justify-between text-xs font-bold text-slate-600 mb-1.5">
-                <span>{isHindi ? 'उत्पादकता स्तर (0 - 12 t/ha)' : 'Productivity Gauge'}</span>
+                <span>
+                  {isHindi
+                    ? `उत्पादकता स्तर (0 - ${nationalStats.maxYield.toFixed(0)} t/ha)`
+                    : `Productivity Gauge (0 - ${nationalStats.maxYield.toFixed(0)} t/ha)`}
+                </span>
                 <span className="text-emerald-700 font-black">{selectedState.average_yield} t/ha</span>
               </div>
               <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden p-0.5">
                 <div
                   className="h-full rounded-full transition-all duration-500 bg-gradient-to-r from-emerald-500 to-teal-500"
-                  style={{ width: `${Math.min(100, (selectedState.average_yield / 12) * 100)}%` }}
+                  style={{ width: `${Math.min(100, (selectedState.average_yield / nationalStats.maxYield) * 100)}%` }}
                 />
               </div>
             </div>

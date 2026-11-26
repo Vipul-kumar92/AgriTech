@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useLanguage } from '../context/LanguageContext';
 import { LoadingSpinner } from '../components/common/StatCard';
@@ -14,7 +15,12 @@ import {
   Sparkles,
   IndianRupee,
   Mic,
-  MicOff
+  MicOff,
+  RotateCcw,
+  ArrowRight,
+  ShieldAlert,
+  Target,
+  CloudSun
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -24,27 +30,75 @@ import {
   YAxis,
   Tooltip,
   CartesianGrid,
-  Legend
+  Legend,
+  ReferenceLine
 } from 'recharts';
 
+const DEFAULT_SIM_PARAMS = {
+  crop: 'Wheat',
+  state: 'Punjab',
+  season: 'Rabi',
+  area: 50.0,
+  annual_rainfall: 700.0,
+  fertilizer: 7000.0,
+  pesticide: 150.0
+};
+
 const SensitivitySimulatorPage = () => {
+  const navigate = useNavigate();
   const { t, isHindi, translateCrop, translateSeason, translateState } = useLanguage();
-  const [params, setParams] = useState({
-    crop: 'Wheat',
-    state: 'Punjab',
-    season: 'Rabi',
-    area: 50.0,
-    annual_rainfall: 700.0,
-    fertilizer: 7000.0,
-    pesticide: 150.0
-  });
+  const [params, setParams] = useState(DEFAULT_SIM_PARAMS);
 
   const [simulation, setSimulation] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [syncingWeather, setSyncingWeather] = useState(false);
   const [categories, setCategories] = useState({ crops: [], states: [], seasons: [] });
   const [isListening, setIsListening] = useState(false);
   const [voiceNote, setVoiceNote] = useState('');
   const recognitionRef = useRef(null);
+
+  // Derive actionable decision-support insights directly from live simulation curves
+  const insights = useMemo(() => {
+    const rainCurve = simulation?.rainfall_sensitivity_curve || [];
+    const fertCurve = simulation?.fertilizer_sensitivity_curve || [];
+    if (!rainCurve.length || !fertCurve.length) return null;
+
+    const basePt = rainCurve.find((p) => p.scenario === '+0% Rain') || rainCurve[4];
+    const droughtPt = rainCurve.find((p) => p.scenario === '-30% Rain') || rainCurve[1];
+    const bestRainPt = [...rainCurve].sort((a, b) => b.predicted_yield_t_ha - a.predicted_yield_t_ha)[0];
+    const optimalFertPt = [...fertCurve].sort((a, b) => b.net_farm_return_lakhs - a.net_farm_return_lakhs)[0];
+
+    const droughtYieldDeltaPct =
+      basePt?.predicted_yield_t_ha > 0
+        ? (((droughtPt.predicted_yield_t_ha - basePt.predicted_yield_t_ha) / basePt.predicted_yield_t_ha) * 100).toFixed(1)
+        : '0.0';
+    const droughtProfitDelta = +(droughtPt.net_farm_return_lakhs - basePt.net_farm_return_lakhs).toFixed(2);
+
+    return {
+      droughtYieldDeltaPct,
+      droughtProfitDelta,
+      bestRainPt,
+      optimalFertPt,
+    };
+  }, [simulation]);
+
+  const handleSyncStateWeather = async (targetState) => {
+    const stateToUse = targetState || params.state;
+    setSyncingWeather(true);
+    try {
+      const res = await api.get('/weather/live', { params: { state: stateToUse } });
+      if (res.data?.annual_rainfall_benchmark_mm) {
+        setParams((prev) => ({
+          ...prev,
+          annual_rainfall: Math.round(res.data.annual_rainfall_benchmark_mm)
+        }));
+      }
+    } catch (err) {
+      console.warn('Weather sync unavailable:', err);
+    } finally {
+      setSyncingWeather(false);
+    }
+  };
 
   const handleVoiceScenario = () => {
     if (isListening && recognitionRef.current) {
@@ -130,19 +184,98 @@ const SensitivitySimulatorPage = () => {
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-16">
       {/* Header */}
-      <div>
-        <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-2">
-          <Sliders className="w-3.5 h-3.5" />
-          <span>{isHindi ? 'निर्णय समर्थन प्रयोगशाला' : 'Decision Support Laboratory'}</span>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div>
+          <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-2">
+            <Sliders className="w-3.5 h-3.5" />
+            <span>{isHindi ? 'निर्णय समर्थन प्रयोगशाला' : 'Decision Support Laboratory'}</span>
+          </div>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+            {isHindi ? 'कृषि संवेदनशीलता एवं व्हाट-इफ़ सिम्युलेटर' : 'What-If Agronomic Sensitivity Simulator'}
+          </h1>
+          <p className="text-sm text-slate-600 mt-1">
+            {isHindi
+              ? 'मौसम संबंधी आघातों एवं कृषि इनपुट को गतिशील रूप से समायोजित कर वास्तविक समय में उपज व लाभ वक्र का अनुकरण करें।'
+              : 'Stress-test climate shocks and fertilizer intensity in real time to optimize crop yield and MSP net profit.'}
+          </p>
         </div>
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-          {isHindi ? 'कृषि संवेदनशीलता एवं व्हाट-इफ़ सिम्युलेटर' : 'What-If Agronomic Sensitivity Simulator'}
-        </h1>
-        <p className="text-sm text-slate-600 mt-1">
-          {isHindi
-            ? 'मौसम संबंधी आघातों एवं कृषि इनपुट को गतिशील रूप से समायोजित कर वास्तविक समय में उपज प्रतिक्रिया वक्र का अनुकरण करें।'
-            : 'Dynamically adjust climate shocks and management inputs to simulate real-time crop yield response curves.'}
-        </p>
+
+        <button
+          type="button"
+          onClick={() =>
+            navigate('/predict', {
+              state: {
+                presetCrop: params.crop,
+                presetState: params.state,
+                presetSeason: params.season,
+                presetArea: params.area,
+                presetRainfall: params.annual_rainfall,
+                presetFertilizer: params.fertilizer,
+                presetPesticide: params.pesticide,
+              }
+            })
+          }
+          className="inline-flex items-center justify-center px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition-all flex-shrink-0"
+        >
+          <Sprout className="w-4 h-4 mr-1.5" />
+          <span>{isHindi ? 'इस परिदृश्य से प्रमाणपत्र बनाएं' : 'Generate Official Forecast'}</span>
+          <ArrowRight className="w-4 h-4 ml-1.5" />
+        </button>
+      </div>
+
+      {/* 1-Click Scenario Stress-Test Presets */}
+      <div className="bg-white/90 backdrop-blur-md rounded-2xl p-3 sm:p-3.5 border border-emerald-100 shadow-xs flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 px-1.5">
+            {isHindi ? 'त्वरित परिदृश्य:' : 'Quick Stress Tests:'}
+          </span>
+          <button
+            type="button"
+            onClick={() => setParams((p) => ({ ...p, annual_rainfall: Math.max(200, Math.round(p.annual_rainfall * 0.7)) }))}
+            className="px-3 py-1.5 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold transition-colors"
+          >
+            ☀️ {isHindi ? 'सूखा (-30% वर्षा)' : 'Drought Shock (-30% Rain)'}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleSyncStateWeather(params.state)}
+            disabled={syncingWeather}
+            className="px-3 py-1.5 rounded-xl bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-200 text-xs font-bold transition-colors inline-flex items-center"
+          >
+            <CloudSun className="w-3.5 h-3.5 mr-1.5" />
+            {syncingWeather ? (isHindi ? 'सिंक...' : 'Syncing...') : (isHindi ? 'राज्य की सामान्य वर्षा' : 'Sync State Normal Rain')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setParams((p) => ({ ...p, annual_rainfall: Math.min(3000, Math.round(p.annual_rainfall * 1.3)) }))}
+            className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 text-xs font-bold transition-colors"
+          >
+            🌧️ {isHindi ? 'अतिरिक्त मानसून (+30%)' : 'Heavy Monsoon (+30%)'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setParams((p) => ({ ...p, fertilizer: Math.round(p.area * 75) }))}
+            className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition-colors"
+          >
+            🌱 {isHindi ? 'कम खाद (75 kg/ha)' : 'Low-Input (75 kg/ha)'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setParams((p) => ({ ...p, fertilizer: Math.min(30000, Math.round(p.area * 225)) }))}
+            className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-800 border border-purple-200 text-xs font-bold transition-colors"
+          >
+            ⚗️ {isHindi ? 'उच्च NPK (225 kg/ha)' : 'High-NPK (225 kg/ha)'}
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setParams(DEFAULT_SIM_PARAMS)}
+          className="inline-flex items-center px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
+        >
+          <RotateCcw className="w-3.5 h-3.5 mr-1.5" />
+          {isHindi ? 'रीसेट' : 'Reset'}
+        </button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -279,21 +412,51 @@ const SensitivitySimulatorPage = () => {
                 {(params.fertilizer / params.area).toFixed(1)} {isHindi ? 'किलो/हेक्टेयर' : 'kg/ha'}
               </p>
             </div>
+
+            <div>
+              <div className="flex justify-between text-xs font-semibold mb-1">
+                <span className="text-slate-700">{isHindi ? 'कुल कीटनाशक' : 'Gross Pesticide'}</span>
+                <span className="text-emerald-700 font-bold">{params.pesticide} kg</span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1000"
+                step="10"
+                name="pesticide"
+                value={params.pesticide}
+                onChange={handleChange}
+                className="w-full accent-emerald-600 cursor-pointer"
+              />
+              <p className="text-[10px] text-slate-500 mt-1">
+                {isHindi ? 'तीव्रता: ' : 'Intensity: '}
+                {(params.pesticide / params.area).toFixed(2)} {isHindi ? 'किलो/हेक्टेयर' : 'kg/ha'}
+              </p>
+            </div>
           </div>
         </div>
 
         {/* Right: Dynamic Response Curves */}
         <div className="lg:col-span-2 space-y-6">
           {/* Base Yield & MSP Economics Callout */}
-          <div className="bg-emerald-50/85 backdrop-blur-sm rounded-2xl p-5 border border-emerald-200 space-y-4 shadow-xs">
+          <div className="bg-gradient-to-br from-emerald-50/95 via-white/90 to-teal-50/90 backdrop-blur-sm rounded-2xl p-5 border border-emerald-200 space-y-4 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">
-                  {isHindi
-                    ? `सिम्युलेटेड आधार उपज (${translateCrop(params.crop)} - ${translateState(params.state)})`
-                    : `Simulated Baseline Yield (${params.crop} in ${params.state})`}
-                </p>
-                <p className="text-3xl font-black text-emerald-900 mt-1">
+                <div className="flex items-center space-x-2">
+                  <p className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">
+                    {isHindi
+                      ? `सिम्युलेटेड आधार उपज (${translateCrop(params.crop)} - ${translateState(params.state)})`
+                      : `Simulated Baseline (${params.crop} in ${params.state})`}
+                  </p>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                    loading
+                      ? 'bg-amber-100 text-amber-800 border-amber-200'
+                      : 'bg-emerald-100 text-emerald-800 border-emerald-200'
+                  }`}>
+                    {loading ? (isHindi ? 'सिम्युलेटिंग...' : 'Updating...') : (isHindi ? '18 परिदृश्य लाइव' : '18 Scenarios Live')}
+                  </span>
+                </div>
+                <p className="text-3xl font-black text-emerald-900 mt-1 tabular-nums">
                   {simulation?.base_yield_t_ha || '—'}{' '}
                   <span className="text-sm font-normal text-emerald-700">
                     {isHindi ? 'टन/हेक्टेयर' : 'tonnes/hectare'}
@@ -347,6 +510,71 @@ const SensitivitySimulatorPage = () => {
             )}
           </div>
 
+          {/* Actionable Optimization & Climate Risk Summary */}
+          {insights && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="rounded-2xl bg-white/95 border border-emerald-200 p-4 shadow-xs flex flex-col justify-between space-y-3">
+                <div className="flex items-start space-x-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center flex-shrink-0">
+                    <Target className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+                      {isHindi ? 'इष्टतम उर्वरक लक्ष्य' : 'Profit-Optimal Fertilizer'}
+                    </p>
+                    <p className="text-sm font-extrabold text-slate-900 mt-0.5">
+                      {insights.optimalFertPt.fertilizer_intensity_kg_ha} kg/ha{' '}
+                      <span className="text-xs font-semibold text-emerald-700">
+                        (₹{insights.optimalFertPt.net_farm_return_lakhs} {isHindi ? 'लाख शुद्ध लाभ' : 'L net'})
+                      </span>
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {isHindi
+                        ? `अनुमानित उपज: ${insights.optimalFertPt.predicted_yield_t_ha} t/ha`
+                        : `Yield at optimum: ${insights.optimalFertPt.predicted_yield_t_ha} t/ha`}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setParams((p) => ({
+                      ...p,
+                      fertilizer: Math.min(30000, Math.max(500, Math.round(insights.optimalFertPt.fertilizer_intensity_kg_ha * p.area)))
+                    }))
+                  }
+                  className="w-full py-1.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors"
+                >
+                  {isHindi ? 'इष्टतम खाद दर लागू करें' : 'Apply Optimal Fertilizer Rate'}
+                </button>
+              </div>
+
+              <div className="rounded-2xl bg-white/95 border border-amber-200 p-4 shadow-xs flex flex-col justify-between space-y-2">
+                <div className="flex items-start space-x-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center flex-shrink-0">
+                    <ShieldAlert className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-amber-800">
+                      {isHindi ? 'जलवायु जोखिम (-30% सूखा)' : 'Drought Stress Impact (-30% Rain)'}
+                    </p>
+                    <p className="text-sm font-extrabold text-slate-900 mt-0.5">
+                      {insights.droughtYieldDeltaPct}% {isHindi ? 'उपज बदलाव' : 'yield shift'}{' '}
+                      <span className={`text-xs font-bold ${insights.droughtProfitDelta < 0 ? 'text-red-600' : 'text-emerald-700'}`}>
+                        ({insights.droughtProfitDelta >= 0 ? '+' : ''}₹{insights.droughtProfitDelta} L)
+                      </span>
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {isHindi
+                        ? `सर्वश्रेष्ठ वर्षा स्तर: ${insights.bestRainPt.scenario} (${insights.bestRainPt.predicted_yield_t_ha} t/ha)`
+                        : `Peak rain scenario: ${insights.bestRainPt.scenario} (${insights.bestRainPt.predicted_yield_t_ha} t/ha)`}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Curve 1: Rainfall Shock Sensitivity */}
           <div className="bg-white/90 backdrop-blur-md p-6 rounded-3xl border border-emerald-100 shadow-sm space-y-3">
             <div className="flex items-center justify-between">
@@ -370,8 +598,9 @@ const SensitivitySimulatorPage = () => {
                 <LineChart data={simulation?.rainfall_sensitivity_curve || []}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="scenario" tick={{ fontSize: 11, fill: '#64748b' }} />
-                  <YAxis yAxisId="yield" unit=" t/ha" tick={{ fontSize: 11, fill: '#0284c7' }} />
-                  <YAxis yAxisId="profit" orientation="right" unit=" L" tick={{ fontSize: 11, fill: '#d97706' }} />
+                  <YAxis yAxisId="yield" width={54} domain={['auto', 'auto']} unit=" t/ha" tick={{ fontSize: 11, fill: '#0284c7' }} />
+                  <YAxis yAxisId="profit" width={48} domain={['auto', 'auto']} orientation="right" unit=" L" tick={{ fontSize: 11, fill: '#d97706' }} />
+                  <ReferenceLine yAxisId="yield" x="+0% Rain" stroke="#10b981" strokeDasharray="4 4" />
                   <Tooltip
                     formatter={(val, name) =>
                       name.includes('Net') || name.includes('लाभ')
@@ -430,8 +659,16 @@ const SensitivitySimulatorPage = () => {
                 <LineChart data={simulation?.fertilizer_sensitivity_curve || []}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="fertilizer_intensity_kg_ha" unit=" kg/ha" tick={{ fontSize: 11, fill: '#64748b' }} />
-                  <YAxis yAxisId="yield" unit=" t/ha" tick={{ fontSize: 11, fill: '#059669' }} />
-                  <YAxis yAxisId="profit" orientation="right" unit=" L" tick={{ fontSize: 11, fill: '#d97706' }} />
+                  <YAxis yAxisId="yield" width={54} domain={['auto', 'auto']} unit=" t/ha" tick={{ fontSize: 11, fill: '#059669' }} />
+                  <YAxis yAxisId="profit" width={48} domain={['auto', 'auto']} orientation="right" unit=" L" tick={{ fontSize: 11, fill: '#d97706' }} />
+                  {insights?.optimalFertPt && (
+                    <ReferenceLine
+                      yAxisId="yield"
+                      x={insights.optimalFertPt.fertilizer_intensity_kg_ha}
+                      stroke="#10b981"
+                      strokeDasharray="4 4"
+                    />
+                  )}
                   <Tooltip
                     formatter={(val, name) =>
                       name.includes('Net') || name.includes('लाभ')

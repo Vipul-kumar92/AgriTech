@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import api from '../services/api';
@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Check,
   Camera,
+  Upload,
   Lock,
   Sparkles,
   ArrowRight
@@ -48,6 +49,74 @@ const ProfilePage = () => {
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '');
   const [picture, setPicture] = useState(user?.picture || '');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setErrorMsg('');
+
+    if (!file.type.startsWith('image/')) {
+      setErrorMsg(isHindi ? 'कृपया केवल मान्य इमेज फ़ाइल चुनें (JPG, PNG, WEBP)' : 'Please select a valid image file (JPG, PNG, WEBP).');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setErrorMsg(isHindi ? 'इमेज फ़ाइल 5 MB से कम होनी चाहिए' : 'Image file must be smaller than 5 MB.');
+      e.target.value = '';
+      return;
+    }
+
+    setUploadingImage(true);
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = async () => {
+        const size = 256;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // Center-crop square thumbnail
+        const minSide = Math.min(img.width, img.height);
+        const sx = (img.width - minSide) / 2;
+        const sy = (img.height - minSide) / 2;
+        ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        setPicture(dataUrl);
+
+        if (!isEditing) {
+          try {
+            const res = await api.put('/auth/profile', { picture: dataUrl });
+            updateUser(res.data);
+            setSuccessMsg(isHindi ? 'प्रोफ़ाइल फोटो सफलतापूर्वक अपडेट की गई!' : 'Profile photo updated successfully!');
+            setTimeout(() => setSuccessMsg(''), 5000);
+          } catch (err) {
+            setErrorMsg(
+              err.response?.data?.detail ||
+              (isHindi ? 'फोटो सहेजने में त्रुटि आई' : 'Failed to save uploaded photo.')
+            );
+          }
+        }
+        setUploadingImage(false);
+      };
+      img.onerror = () => {
+        setErrorMsg(isHindi ? 'इमेज प्रोसेस करने में त्रुटि आई' : 'Failed to process selected image.');
+        setUploadingImage(false);
+      };
+      img.src = reader.result;
+    };
+    reader.onerror = () => {
+      setErrorMsg(isHindi ? 'फ़ाइल पढ़ने में त्रुटि आई' : 'Failed to read image file.');
+      setUploadingImage(false);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
 
   // Password Change Fields
   const [showPasswordSection, setShowPasswordSection] = useState(false);
@@ -150,11 +219,6 @@ const ProfilePage = () => {
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
             {isHindi ? 'उपयोगकर्ता प्रोफ़ाइल' : 'User Profile'}
           </h1>
-          <p className="text-sm text-slate-600 mt-1">
-            {isHindi
-              ? 'अपनी व्यक्तिगत जानकारी, संपर्क नंबर, फोटो और भूमिका को संपादित करें।'
-              : 'Manage and update your account identity, personal details, and avatar.'}
-          </p>
         </div>
 
         {!isEditing ? (
@@ -210,6 +274,14 @@ const ProfilePage = () => {
 
       {/* Main Profile Card */}
       <div className="bg-white/90 backdrop-blur-md rounded-3xl p-6 sm:p-8 border border-emerald-100 shadow-sm space-y-8">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          onChange={handleImageUpload}
+          className="hidden"
+        />
+
         {!isEditing ? (
           /* ================= VIEW MODE ================= */
             <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
@@ -226,11 +298,18 @@ const ProfilePage = () => {
                   </div>
                 )}
                 <button
-                  onClick={() => setIsEditing(true)}
-                  className="absolute -bottom-1.5 -right-1.5 p-2 bg-emerald-600 text-white rounded-xl shadow-md hover:scale-110 transition-transform"
-                  title={isHindi ? 'फोटो बदलें' : 'Change avatar'}
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingImage}
+                  className="absolute -bottom-1.5 -right-1.5 p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-md hover:scale-110 transition-transform disabled:opacity-60"
+                  title={isHindi ? 'लैपटॉप / डिवाइस से फोटो चुनें' : 'Choose photo from your laptop'}
+                  aria-label="Choose photo from your laptop"
                 >
-                  <Camera className="w-3.5 h-3.5" />
+                  {uploadingImage ? (
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Camera className="w-3.5 h-3.5" />
+                  )}
                 </button>
               </div>
 
@@ -264,14 +343,11 @@ const ProfilePage = () => {
         ) : (
           /* ================= EDIT MODE ================= */
           <form onSubmit={handleSaveProfile} className="space-y-6">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="flex items-center pb-4 border-b border-slate-100">
               <div className="flex items-center space-x-2 text-emerald-800 font-bold text-sm">
                 <Edit3 className="w-4 h-4" />
                 <span>{isHindi ? 'प्रोफ़ाइल विवरण संपादित करें' : 'Edit Profile Credentials'}</span>
               </div>
-              <span className="text-xs text-slate-400">
-                {isHindi ? 'सभी बदलाव डेटाबेस में सुरक्षित किए जाएंगे' : 'Changes will be saved to MongoDB'}
-              </span>
             </div>
 
             {/* Avatar Section & Presets */}
@@ -297,8 +373,9 @@ const ProfilePage = () => {
 
                 <div className="space-y-2 flex-1 w-full">
                   <div className="text-xs font-semibold text-slate-600">
-                    {isHindi ? 'अपना पसंदीदा अवतार या आरंभिक अक्षर चुनें:' : 'Select your preferred avatar or badge:'}
+                    {isHindi ? 'अपना पसंदीदा अवतार या डिवाइस से फोटो चुनें:' : 'Select your preferred avatar or upload a photo:'}
                   </div>
+
                   <div className="flex flex-wrap gap-2.5 items-center">
                     {AVATAR_PRESETS.map((p, idx) => (
                       <button
@@ -333,6 +410,24 @@ const ProfilePage = () => {
                       }`}
                     >
                       {isHindi ? 'डिफ़ॉल्ट लोगो' : 'Default Badge'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploadingImage}
+                      className={`inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all border disabled:opacity-60 ${
+                        picture?.startsWith('data:image/')
+                          ? 'bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-400'
+                          : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300'
+                      }`}
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>
+                        {uploadingImage
+                          ? (isHindi ? 'प्रोसेस हो रहा है...' : 'Processing...')
+                          : (isHindi ? 'फोटो अपलोड करें' : 'Upload Photo')}
+                      </span>
                     </button>
                   </div>
                 </div>

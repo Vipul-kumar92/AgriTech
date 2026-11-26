@@ -20,6 +20,8 @@ from backend.app.database import get_database
 
 logger = logging.getLogger(__name__)
 GOOGLE_CLIENT_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]+\.apps\.googleusercontent\.com$")
+ALLOWED_IMAGE_DATA_URI = re.compile(r"^data:image/(png|jpeg|jpg|webp|gif);base64,[A-Za-z0-9+/=]+$")
+MAX_PROFILE_PICTURE_LEN = 400_000
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -258,11 +260,26 @@ async def update_profile(
     if payload.phone is not None:
         update_fields["phone"] = payload.phone.strip() if payload.phone.strip() else None
         
-    if payload.picture is not None and payload.picture.strip():
-        update_fields["picture"] = payload.picture.strip()
-        
+    if "picture" in payload.model_fields_set:
+        pic_val = payload.picture.strip() if payload.picture else ""
+        if not pic_val:
+            update_fields["picture"] = None
+        else:
+            if len(pic_val) > MAX_PROFILE_PICTURE_LEN:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Profile image size is too large (max ~300KB encoded)"
+                )
+            is_http = pic_val.startswith("https://") or pic_val.startswith("http://")
+            if not (is_http or ALLOWED_IMAGE_DATA_URI.match(pic_val)):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid profile picture URL or image format"
+                )
+            update_fields["picture"] = pic_val
+
     if payload.role is not None:
-        update_fields["role"] = "FARMER"
+        update_fields["role"] = "ADMIN" if current_user.get("role") == "ADMIN" else "FARMER"
             
     # Handle password change if requested
     if payload.new_password:

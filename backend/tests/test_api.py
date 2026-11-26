@@ -249,3 +249,19 @@ def test_update_user_profile():
         assert me_res.json()["name"] == "Updated Farmer Name"
         assert me_res.json()["phone"] == "+91 9876543210"
 
+        # Upload base64 profile picture & clear it
+        img_res = tc.put("/api/auth/profile", json={
+            "picture": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+        }, headers=headers)
+        assert img_res.status_code == 200
+        assert img_res.json()["picture"].startswith("data:image/png;base64,")
+
+        bad_img_res = tc.put("/api/auth/profile", json={
+            "picture": "javascript:alert(1)"
+        }, headers=headers)
+        assert bad_img_res.status_code == 400
+
+        clear_res = tc.put("/api/auth/profile", json={"picture": None}, headers=headers)
+        assert clear_res.status_code == 200
+        assert clear_res.json()["picture"] is None
+

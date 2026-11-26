@@ -5,79 +5,199 @@ AI-Based Crop Yield Prediction System
 
 import os
 import json
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import pandas as pd
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
 from backend.app.config import settings
 from backend.app.database import get_database
 from backend.app.auth.jwt_handler import get_optional_user
 
 router = APIRouter(tags=["Analytics & Insights"])
 
-# Cached summary of processed dataset
+# Cached summary of processed dataset & dataframe
 _dataset_cache: Dict[str, Any] = {}
+_df_cache: Optional[pd.DataFrame] = None
+
+
+def _load_processed_df() -> Optional[pd.DataFrame]:
+    global _df_cache
+    if _df_cache is None and os.path.exists(settings.PROCESSED_DATA_PATH):
+        _df_cache = pd.read_csv(settings.PROCESSED_DATA_PATH)
+    return _df_cache
+
+
+def _compute_df_analytics(df: pd.DataFrame) -> Dict[str, Any]:
+    if df.empty:
+        return {
+            "total_records": 0,
+            "total_crops": 0,
+            "total_states": 0,
+            "total_seasons": 0,
+            "average_yield": 0.0,
+            "median_yield": 0.0,
+            "min_yield": 0.0,
+            "max_yield": 0.0,
+            "average_rainfall": 0.0,
+            "top_crops": [],
+            "top_yield_crops": [],
+            "seasons_stats": [],
+            "top_states": [],
+            "rainfall_yield_trends": [],
+            "fertilizer_yield_trends": [],
+            "yearly_trends": [],
+        }
+
+    # Crop statistics (both by record volume and by mean yield)
+    crop_stats = df.groupby('Crop')['Yield'].agg(['mean', 'count']).reset_index()
+    top_crops = crop_stats.sort_values('count', ascending=False).head(15)
+    top_crops_list = [
+        {"crop": r['Crop'], "average_yield": round(float(r['mean']), 2), "record_count": int(r['count'])}
+        for _, r in top_crops.iterrows()
+    ]
+
+    top_yield_crops = crop_stats[crop_stats['count'] >= 5].sort_values('mean', ascending=False).head(15)
+    if top_yield_crops.empty:
+        top_yield_crops = crop_stats.sort_values('mean', ascending=False).head(15)
+    top_yield_crops_list = [
+        {"crop": r['Crop'], "average_yield": round(float(r['mean']), 2), "record_count": int(r['count'])}
+        for _, r in top_yield_crops.iterrows()
+    ]
+
+    # Season statistics
+    season_stats = df.groupby('Season')['Yield'].agg(['mean', 'count']).reset_index()
+    season_list = [
+        {"season": r['Season'], "average_yield": round(float(r['mean']), 2), "record_count": int(r['count'])}
+        for _, r in season_stats.iterrows()
+    ]
+
+    # State statistics
+    state_stats = df.groupby('State')['Yield'].agg(['mean', 'count']).reset_index()
+    top_states = state_stats.sort_values('mean', ascending=False).head(15)
+    top_states_list = [
+        {"state": r['State'], "average_yield": round(float(r['mean']), 2), "record_count": int(r['count'])}
+        for _, r in top_states.iterrows()
+    ]
+
+    # Rainfall brackets vs yield
+    rain_bins = pd.cut(
+        df['Annual_Rainfall'],
+        bins=[0, 800, 1500, 2500, 10000],
+        labels=['Low (<800mm)', 'Moderate (800-1500mm)', 'High (1500-2500mm)', 'Very High (>2500mm)']
+    )
+    rain_yield = df.assign(Rainfall_Bin=rain_bins).groupby('Rainfall_Bin', observed=False)['Yield'].agg(['mean', 'count']).reset_index()
+    rain_yield_list = [
+        {
+            "rainfall_bracket": str(r['Rainfall_Bin']),
+            "average_yield": round(float(r['mean']), 2) if pd.notna(r['mean']) else 0.0,
+            "record_count": int(r['count']),
+        }
+        for _, r in rain_yield.iterrows()
+    ]
+
+    # Fertilizer intensity brackets vs yield
+    fert_bins = pd.cut(
+        df['Fertilizer_per_Ha'],
+        bins=[-0.01, 50, 100, 150, 200, 100000],
+        labels=['<50 kg/ha', '50-100 kg/ha', '100-150 kg/ha', '150-200 kg/ha', '>200 kg/ha']
+    )
+    fert_yield = df.assign(Fert_Bin=fert_bins).groupby('Fert_Bin', observed=False)['Yield'].agg(['mean', 'count']).reset_index()
+    fert_yield_list = [
+        {
+            "fertilizer_bracket": str(r['Fert_Bin']),
+            "average_yield": round(float(r['mean']), 2) if pd.notna(r['mean']) else 0.0,
+            "record_count": int(r['count']),
+        }
+        for _, r in fert_yield.iterrows()
+    ]
+
+    # 24-Year Historical Trajectory (1997-2020)
+    yearly_df = (
+        df.groupby('Crop_Year')
+        .agg(avg_yield=('Yield', 'mean'), avg_rainfall=('Annual_Rainfall', 'mean'), records=('Yield', 'count'))
+        .reset_index()
+        .sort_values('Crop_Year')
+    )
+    yearly_trends = [
+        {
+            "year": int(r['Crop_Year']),
+            "average_yield": round(float(r['avg_yield']), 2),
+            "average_rainfall_mm": round(float(r['avg_rainfall']), 1),
+            "records": int(r['records']),
+        }
+        for _, r in yearly_df.iterrows()
+    ]
+
+    return {
+        "total_records": len(df),
+        "total_crops": int(df['Crop'].nunique()),
+        "total_states": int(df['State'].nunique()),
+        "total_seasons": int(df['Season'].nunique()),
+        "average_yield": round(float(df['Yield'].mean()), 2),
+        "median_yield": round(float(df['Yield'].median()), 2),
+        "min_yield": round(float(df['Yield'].min()), 4),
+        "max_yield": round(float(df['Yield'].max()), 2),
+        "average_rainfall": round(float(df['Annual_Rainfall'].mean()), 1),
+        "top_crops": top_crops_list,
+        "top_yield_crops": top_yield_crops_list,
+        "seasons_stats": season_list,
+        "top_states": top_states_list,
+        "rainfall_yield_trends": rain_yield_list,
+        "fertilizer_yield_trends": fert_yield_list,
+        "yearly_trends": yearly_trends,
+    }
+
 
 def get_cached_dataset_stats() -> Dict[str, Any]:
     global _dataset_cache
     if not _dataset_cache:
-        if os.path.exists(settings.PROCESSED_DATA_PATH):
-            df = pd.read_csv(settings.PROCESSED_DATA_PATH)
-            
-            # Crop statistics
-            crop_stats = df.groupby('Crop')['Yield'].agg(['mean', 'count']).reset_index()
-            top_crops = crop_stats.sort_values('count', ascending=False).head(15)
-            top_crops_list = [
-                {"crop": r['Crop'], "average_yield": round(float(r['mean']), 2), "record_count": int(r['count'])}
-                for _, r in top_crops.iterrows()
-            ]
-
-            # Season statistics
-            season_stats = df.groupby('Season')['Yield'].agg(['mean', 'count']).reset_index()
-            season_list = [
-                {"season": r['Season'], "average_yield": round(float(r['mean']), 2), "record_count": int(r['count'])}
-                for _, r in season_stats.iterrows()
-            ]
-
-            # State statistics
-            state_stats = df.groupby('State')['Yield'].agg(['mean', 'count']).reset_index()
-            top_states = state_stats.sort_values('mean', ascending=False).head(15)
-            top_states_list = [
-                {"state": r['State'], "average_yield": round(float(r['mean']), 2), "record_count": int(r['count'])}
-                for _, r in top_states.iterrows()
-            ]
-
-            # Rainfall brackets vs yield
-            df['Rainfall_Bin'] = pd.cut(df['Annual_Rainfall'], bins=[0, 800, 1500, 2500, 5000], labels=['Low (<800mm)', 'Moderate (800-1500mm)', 'High (1500-2500mm)', 'Very High (>2500mm)'])
-            rain_yield = df.groupby('Rainfall_Bin', observed=False)['Yield'].mean().reset_index()
-            rain_yield_list = [
-                {"rainfall_bracket": str(r['Rainfall_Bin']), "average_yield": round(float(r['Yield']), 2)}
-                for _, r in rain_yield.iterrows()
-            ]
-
+        df = _load_processed_df()
+        if df is not None:
+            computed = _compute_df_analytics(df)
             _dataset_cache = {
-                "total_records": len(df),
-                "total_crops": int(df['Crop'].nunique()),
-                "total_states": int(df['State'].nunique()),
-                "total_seasons": int(df['Season'].nunique()),
+                **computed,
                 "crops": sorted(df['Crop'].unique().tolist()),
                 "states": sorted(df['State'].unique().tolist()),
                 "seasons": sorted(df['Season'].unique().tolist()),
-                "average_yield": round(float(df['Yield'].mean()), 2),
-                "median_yield": round(float(df['Yield'].median()), 2),
-                "min_yield": round(float(df['Yield'].min()), 4),
-                "max_yield": round(float(df['Yield'].max()), 2),
-                "top_crops": top_crops_list,
-                "seasons_stats": season_list,
-                "top_states": top_states_list,
-                "rainfall_yield_trends": rain_yield_list
             }
     return _dataset_cache
 
+
 @router.get("/analytics", response_model=Dict[str, Any])
-async def get_analytics_overview():
-    """Retrieve high-level agricultural analytics and database prediction metrics."""
+async def get_analytics_overview(
+    state: Optional[str] = Query(None, description="Optional filter by Indian state"),
+    season: Optional[str] = Query(None, description="Optional filter by cropping season"),
+):
+    """Retrieve high-level agricultural analytics, temporal trajectories, and filtered dataset metrics."""
     db = get_database()
-    ds_stats = get_cached_dataset_stats()
+    full_stats = get_cached_dataset_stats()
+
+    # Apply optional state/season filters cleanly on the authentic dataset
+    if state or season:
+        df = _load_processed_df()
+        if df is not None:
+            filtered = df
+            if state:
+                filtered = filtered[filtered['State'] == state.strip()]
+            if season:
+                filtered = filtered[filtered['Season'].str.strip() == season.strip()]
+            ds_stats = _compute_df_analytics(filtered)
+
+            # Keep state comparison populated across states (filtered only by season) so the regional chart stays comparative
+            if state:
+                season_df = df[df['Season'].str.strip() == season.strip()] if season else df
+                state_stats = season_df.groupby('State')['Yield'].agg(['mean', 'count']).reset_index().sort_values('mean', ascending=False)
+                top_states_df = state_stats.head(15)
+                if state.strip() not in top_states_df['State'].values:
+                    sel_row = state_stats[state_stats['State'] == state.strip()]
+                    top_states_df = pd.concat([top_states_df.head(14), sel_row], ignore_index=True)
+                ds_stats["top_states"] = [
+                    {"state": r['State'], "average_yield": round(float(r['mean']), 2), "record_count": int(r['count'])}
+                    for _, r in top_states_df.iterrows()
+                ]
+        else:
+            ds_stats = full_stats
+    else:
+        ds_stats = full_stats
 
     total_preds = await db.predictions.count_documents({})
     
@@ -117,12 +237,24 @@ async def get_analytics_overview():
             "model_r2": model_r2,
             "dataset_records": ds_stats.get("total_records", 19407),
             "total_crops": ds_stats.get("total_crops", 54),
-            "total_states": ds_stats.get("total_states", 30)
+            "total_states": ds_stats.get("total_states", 30),
+            "average_yield": ds_stats.get("average_yield", 0.0),
+            "median_yield": ds_stats.get("median_yield", 0.0),
+            "average_rainfall_mm": ds_stats.get("average_rainfall", 0.0),
+        },
+        "filters": {
+            "states": full_stats.get("states", []),
+            "seasons": full_stats.get("seasons", []),
+            "applied_state": state or "",
+            "applied_season": season or "",
         },
         "crop_distribution": ds_stats.get("top_crops", []),
+        "top_yield_crops": ds_stats.get("top_yield_crops", []),
         "seasonal_distribution": ds_stats.get("seasons_stats", []),
         "state_productivity": ds_stats.get("top_states", []),
-        "rainfall_trends": ds_stats.get("rainfall_yield_trends", [])
+        "rainfall_trends": ds_stats.get("rainfall_yield_trends", []),
+        "fertilizer_trends": ds_stats.get("fertilizer_yield_trends", []),
+        "yearly_trends": ds_stats.get("yearly_trends", []),
     }
 
 @router.get("/dataset/stats", response_model=Dict[str, Any])

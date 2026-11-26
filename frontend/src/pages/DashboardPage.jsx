@@ -7,22 +7,16 @@ import { StatCard, LoadingSpinner } from '../components/common/StatCard';
 import { parseAgriVoiceTranscript } from '../utils/voiceParser';
 import {
   Sprout,
-  BarChart3,
   Award,
   TrendingUp,
-  History,
   ArrowUpRight,
   Database,
-  Calendar,
   CloudSun,
   Droplets,
   Thermometer,
-  Compass,
   Map,
-  SlidersHorizontal,
   Sparkles,
   Wheat,
-  CheckCircle2,
   Info,
   RefreshCw,
   MapPin,
@@ -31,18 +25,6 @@ import {
   MicOff,
   X
 } from 'lucide-react';
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  Tooltip,
-  CartesianGrid,
-  Cell
-} from 'recharts';
-
-const AGRI_COLORS = ['#10b981', '#059669', '#047857', '#065f46', '#14b8a6', '#0d9488', '#22c55e'];
 
 const DEFAULT_STATES = [
   'Andhra Pradesh', 'Assam', 'Bihar', 'Gujarat', 'Haryana', 'Karnataka',
@@ -270,20 +252,6 @@ const DashboardPage = () => {
   }
 
   const kpi = analytics?.kpi || {};
-  const rawCropData = analytics?.crop_distribution?.slice(0, 7) || [];
-  const rawSeasonalData = analytics?.seasonal_distribution || [];
-
-  // Translate crop & season data for recharts
-  const cropData = rawCropData.map((item) => ({
-    ...item,
-    displayName: translateCrop(item.crop),
-  }));
-
-  const seasonalData = rawSeasonalData.map((item) => ({
-    ...item,
-    displayName: translateSeason(item.season),
-  }));
-
   const agroCycle = getCurrentAgroCycle(isHindi);
   const dynamicAdvisory = getDynamicAdvisory(liveWeather, isHindi);
   const displayTemp = liveWeather ? `${liveWeather.temperature_c ?? liveWeather.temperature_celsius}°C` : (weatherLoading ? '...' : '—');
@@ -681,207 +649,7 @@ const DashboardPage = () => {
       </div>
 
       {/* ========================================================================= */}
-      {/* 4. SMART FARMING QUICK ACTION TILES                                        */}
-      {/* ========================================================================= */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-bold text-slate-900">
-            {t('quick_actions_title', 'Farm Intelligence & Analytical Suites')}
-          </h2>
-          <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/70 px-2.5 py-1 rounded-full">
-            KrishiPulse Modules
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Card 1: Predict Yield */}
-          <Link
-            to="/predict"
-            className="group relative overflow-hidden p-5 rounded-2xl glass-card-agri ring-1 ring-white/70 hover:border-emerald-400 hover:shadow-xl hover:shadow-emerald-500/15 transition-all flex flex-col justify-between"
-          >
-            <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-emerald-400/10 blur-2xl group-hover:scale-150 transition-transform duration-500" />
-            <div className="relative z-10">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/25 flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
-                <Sprout className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-sm text-slate-900 group-hover:text-emerald-700 transition-colors">
-                {t('action_predict_title', 'Predict Crop Yield')}
-              </h3>
-              <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                {t('action_predict_desc', 'Run multi-variable ML models with NPK, rainfall & soil data.')}
-              </p>
-            </div>
-            <div className="relative z-10 mt-4 flex items-center text-xs font-bold text-emerald-600 group-hover:translate-x-1 transition-transform">
-              <span>{isHindi ? 'पूर्वानुमान लगाएं' : 'Start Inference'}</span>
-              <ArrowUpRight className="w-3.5 h-3.5 ml-1" />
-            </div>
-          </Link>
-
-          {/* Card 2: Yield Map */}
-          <Link
-            to="/map"
-            className="group relative overflow-hidden p-5 rounded-2xl glass-card-agri ring-1 ring-white/70 hover:border-teal-400 hover:shadow-xl hover:shadow-teal-500/15 transition-all flex flex-col justify-between"
-          >
-            <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-teal-400/10 blur-2xl group-hover:scale-150 transition-transform duration-500" />
-            <div className="relative z-10">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-600 text-white shadow-md shadow-teal-500/25 flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
-                <Map className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-sm text-slate-900 group-hover:text-teal-700 transition-colors">
-                {t('action_map_title', 'Agri Yield Map')}
-              </h3>
-              <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                {t('action_map_desc', 'Interactive state-level productivity and geographic crop zones.')}
-              </p>
-            </div>
-            <div className="relative z-10 mt-4 flex items-center text-xs font-bold text-teal-600 group-hover:translate-x-1 transition-transform">
-              <span>{isHindi ? 'मानचित्र देखें' : 'View Geospatial Map'}</span>
-              <ArrowUpRight className="w-3.5 h-3.5 ml-1" />
-            </div>
-          </Link>
-
-          {/* Card 3: What-If Simulator */}
-          <Link
-            to="/simulator"
-            className="group relative overflow-hidden p-5 rounded-2xl glass-card-agri ring-1 ring-white/70 hover:border-amber-400 hover:shadow-xl hover:shadow-amber-500/15 transition-all flex flex-col justify-between"
-          >
-            <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-amber-400/10 blur-2xl group-hover:scale-150 transition-transform duration-500" />
-            <div className="relative z-10">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/25 flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
-                <SlidersHorizontal className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-sm text-slate-900 group-hover:text-amber-700 transition-colors">
-                {t('action_sim_title', 'What-If Lab Simulator')}
-              </h3>
-              <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                {t('action_sim_desc', 'Simulate climate sensitivity, fertilizer tweaks, and yield impact.')}
-              </p>
-            </div>
-            <div className="relative z-10 mt-4 flex items-center text-xs font-bold text-amber-600 group-hover:translate-x-1 transition-transform">
-              <span>{isHindi ? 'सिमुलेशन करें' : 'Open Simulator'}</span>
-              <ArrowUpRight className="w-3.5 h-3.5 ml-1" />
-            </div>
-          </Link>
-
-          {/* Card 4: Historical Analytics */}
-          <Link
-            to="/analytics"
-            className="group relative overflow-hidden p-5 rounded-2xl glass-card-agri ring-1 ring-white/70 hover:border-purple-400 hover:shadow-xl hover:shadow-purple-500/15 transition-all flex flex-col justify-between"
-          >
-            <div className="absolute -right-6 -top-6 w-24 h-24 rounded-full bg-purple-400/10 blur-2xl group-hover:scale-150 transition-transform duration-500" />
-            <div className="relative z-10">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-md shadow-purple-500/25 flex items-center justify-center mb-3.5 group-hover:scale-110 transition-transform">
-                <BarChart3 className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-sm text-slate-900 group-hover:text-purple-700 transition-colors">
-                {t('action_analytics_title', 'Agri Analytics')}
-              </h3>
-              <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                {t('action_analytics_desc', 'Explore 24 years of crop distributions, trends, and seasonal yields.')}
-              </p>
-            </div>
-            <div className="relative z-10 mt-4 flex items-center text-xs font-bold text-purple-600 group-hover:translate-x-1 transition-transform">
-              <span>{isHindi ? 'विश्लेषण देखें' : 'View Deep Insights'}</span>
-              <ArrowUpRight className="w-3.5 h-3.5 ml-1" />
-            </div>
-          </Link>
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* 5. INTERACTIVE CHARTS GRID (GLASSMORPHISM WITH NATURE ACCENTS)            */}
-      {/* ========================================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Crop-wise Productivity Benchmark */}
-        <div className="rounded-2xl glass-card-agri p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-900">
-                {t('chart_crop_title', 'Historical Crop Yield Benchmarks')}
-              </h3>
-              <p className="text-xs text-slate-500">
-                {t('chart_crop_subtitle', 'Mean productivity across top cultivated crops (tonnes/ha)')}
-              </p>
-            </div>
-            <Link to="/analytics" className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center">
-              {t('chart_crop_link', 'Full Analytics')} <ArrowUpRight className="w-3.5 h-3.5 ml-0.5" />
-            </Link>
-          </div>
-
-          <div className="h-64 w-full pt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={cropData} margin={{ top: 10, right: 10, left: -20, bottom: 25 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="displayName" angle={-25} textAnchor="end" tick={{ fontSize: 11, fill: '#475569' }} />
-                <YAxis tick={{ fontSize: 11, fill: '#475569' }} />
-                <Tooltip
-                  formatter={(val) => [`${val} ${t('unit_tonnes_ha', 'tonnes/ha')}`, t('mean_yield', 'Mean Yield')]}
-                  contentStyle={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    backdropFilter: 'blur(8px)',
-                    borderRadius: '14px',
-                    border: '1px solid #cbd5e1',
-                    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)'
-                  }}
-                />
-                <Bar dataKey="average_yield" fill="#10b981" radius={[8, 8, 0, 0]}>
-                  {cropData.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={AGRI_COLORS[index % AGRI_COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Seasonal Yield Analysis */}
-        <div className="rounded-2xl glass-card-agri p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-900">
-                {t('chart_season_title', 'Seasonal Productivity Variations')}
-              </h3>
-              <p className="text-xs text-slate-500">
-                {t('chart_season_subtitle', 'Average harvest yield categorized by agro-season')}
-              </p>
-            </div>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
-              {t('six_seasons_badge', '6 Agro-Seasons')}
-            </span>
-          </div>
-
-          <div className="h-64 w-full pt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={seasonalData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="displayName" tick={{ fontSize: 11, fill: '#475569' }} />
-                <YAxis tick={{ fontSize: 11, fill: '#475569' }} />
-                <Tooltip
-                  formatter={(val) => [`${val} ${t('unit_tonnes_ha', 'tonnes/ha')}`, t('avg_yield', 'Avg Yield')]}
-                  contentStyle={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    backdropFilter: 'blur(8px)',
-                    borderRadius: '14px',
-                    border: '1px solid #cbd5e1',
-                    boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)'
-                  }}
-                />
-                <Bar dataKey="average_yield" radius={[8, 8, 0, 0]}>
-                  {seasonalData.map((_, index) => (
-                    <Cell
-                      key={`season-cell-${index}`}
-                      fill={['#f59e0b', '#10b981', '#0ea5e9', '#14b8a6', '#f97316', '#8b5cf6'][index % 6]}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* 6. RECENT PREDICTIONS TABLE (GLASSMORPHISM WITH BILINGUAL ROWS)           */}
+      {/* 4. RECENT PREDICTIONS TABLE (GLASSMORPHISM WITH BILINGUAL ROWS)           */}
       {/* ========================================================================= */}
       <div className="rounded-2xl glass-card-agri overflow-hidden border border-emerald-100 shadow-md">
         <div className="p-6 border-b border-emerald-50 flex items-center justify-between">
