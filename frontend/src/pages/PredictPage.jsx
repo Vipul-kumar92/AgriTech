@@ -240,9 +240,9 @@ const PredictPage = () => {
     } catch (err) {
       setError(
         err.response?.data?.detail ||
-          (mode === 'recommend'
-            ? 'Failed to generate crop recommendations. Please check inputs.'
-            : 'Failed to generate prediction. Please check inputs.')
+        (mode === 'recommend'
+          ? 'Failed to generate crop recommendations. Please check inputs.'
+          : 'Failed to generate prediction. Please check inputs.')
       );
     } finally {
       setSubmitting(false);
@@ -364,11 +364,11 @@ const PredictPage = () => {
           <p className="text-sm text-slate-500 mt-1">
             {mode === 'recommend'
               ? (isHindi
-                  ? 'अपना राज्य, मौसम, क्षेत्रफल, वर्षा और खाद दर्ज करें — हम आपकी ज़मीन के लिए टॉप-5 सबसे लाभदायक फसलें रैंक करेंगे।'
-                  : 'Enter your state, season, land area, rainfall, and inputs — our ML + CACP MSP engine ranks the top 5 most profitable crops.')
+                ? 'अपना राज्य, मौसम, क्षेत्रफल, वर्षा और खाद दर्ज करें — हम आपकी ज़मीन के लिए टॉप-5 सबसे लाभदायक फसलें रैंक करेंगे।'
+                : 'Enter your state, season, land area, rainfall, and inputs — our ML + CACP MSP engine ranks the top 5 most profitable crops.')
               : (isHindi
-                  ? 'अपने कृषि और पर्यावरणीय पैरामीटर दर्ज करें। हमारा प्रशिक्षित रैंडम फॉरेस्ट मॉडल टन/हेक्टेयर में सटीक उपज का अनुमान लगाएगा।'
-                  : 'Input your agricultural and environmental parameters. Our trained Random Forest pipeline will generate an empirical yield forecast in tonnes/hectare.')}
+                ? 'अपने कृषि और पर्यावरणीय पैरामीटर दर्ज करें। हमारा प्रशिक्षित रैंडम फॉरेस्ट मॉडल टन/हेक्टेयर में सटीक उपज का अनुमान लगाएगा।'
+                : 'Input your agricultural and environmental parameters. Our trained Random Forest pipeline will generate an empirical yield forecast in tonnes/hectare.')}
           </p>
         </div>
 
@@ -380,11 +380,10 @@ const PredictPage = () => {
               setMode('single');
               setError('');
             }}
-            className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-              mode === 'single'
-                ? 'bg-emerald-600 text-white shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${mode === 'single'
+              ? 'bg-emerald-600 text-white shadow-sm'
+              : 'text-slate-600 hover:text-slate-900'
+              }`}
           >
             <Sprout className="w-3.5 h-3.5" />
             <span>{isHindi ? 'एकल फसल पूर्वानुमान' : 'Single Crop'}</span>
@@ -395,11 +394,10 @@ const PredictPage = () => {
               setMode('recommend');
               setError('');
             }}
-            className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-              mode === 'recommend'
-                ? 'bg-gradient-to-r from-amber-500 to-emerald-600 text-white shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
+            className={`inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${mode === 'recommend'
+              ? 'bg-gradient-to-r from-amber-500 to-emerald-600 text-white shadow-sm'
+              : 'text-slate-600 hover:text-slate-900'
+              }`}
           >
             <Trophy className="w-3.5 h-3.5" />
             <span>{isHindi ? 'टॉप-5 फसल सलाहकार' : 'Top-5 Recommender'}</span>
@@ -434,11 +432,10 @@ const PredictPage = () => {
         <button
           type="button"
           onClick={handleVoiceInput}
-          className={`inline-flex items-center justify-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors flex-shrink-0 ${
-            isListening
-              ? 'bg-red-600 hover:bg-red-700 text-white'
-              : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
-          }`}
+          className={`inline-flex items-center justify-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-colors flex-shrink-0 ${isListening
+            ? 'bg-red-600 hover:bg-red-700 text-white'
+            : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
+            }`}
         >
           {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
           <span>{isListening ? (isHindi ? 'रोकें (सुन रहा है)' : 'Stop Listening') : (isHindi ? 'बोलकर भरें' : 'Speak Inputs')}</span>
@@ -630,13 +627,12 @@ const PredictPage = () => {
               {/* 3-Day Spraying / Irrigation Advisory Alert */}
               {liveWeather.spray_advisory && (
                 <div
-                  className={`p-2.5 rounded-xl border text-[11px] flex items-start space-x-2 ${
-                    liveWeather.spray_advisory.spray_status === 'DELAY_SPRAY'
-                      ? 'bg-red-50 border-red-200 text-red-900'
-                      : liveWeather.spray_advisory.spray_status === 'CAUTION' || liveWeather.spray_advisory.spray_status === 'IRRIGATION_ALERT'
-                        ? 'bg-amber-50 border-amber-200 text-amber-900'
-                        : 'bg-emerald-50 border-emerald-200 text-emerald-900'
-                  }`}
+                  className={`p-2.5 rounded-xl border text-[11px] flex items-start space-x-2 ${liveWeather.spray_advisory.spray_status === 'DELAY_SPRAY'
+                    ? 'bg-red-50 border-red-200 text-red-900'
+                    : liveWeather.spray_advisory.spray_status === 'CAUTION' || liveWeather.spray_advisory.spray_status === 'IRRIGATION_ALERT'
+                      ? 'bg-amber-50 border-amber-200 text-amber-900'
+                      : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                    }`}
                 >
                   <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-600" />
                   <div>
@@ -668,9 +664,8 @@ const PredictPage = () => {
                       return (
                         <div
                           key={day.date}
-                          className={`rounded-lg p-1.5 border text-center ${
-                            wet ? 'bg-sky-50 border-sky-200' : 'bg-white/90 border-slate-200/80'
-                          }`}
+                          className={`rounded-lg p-1.5 border text-center ${wet ? 'bg-sky-50 border-sky-200' : 'bg-white/90 border-slate-200/80'
+                            }`}
                         >
                           <div className="text-[10px] font-extrabold text-slate-800">{day.day_label}</div>
                           <div className="text-[11px] font-black text-slate-900">
@@ -831,11 +826,10 @@ const PredictPage = () => {
           <button
             type="submit"
             disabled={submitting}
-            className={`w-full sm:w-auto px-8 py-4 text-white font-extrabold text-base rounded-2xl shadow-lg transition-all hover:-translate-y-0.5 flex items-center justify-center disabled:opacity-50 ${
-              mode === 'recommend'
-                ? 'bg-gradient-to-r from-amber-500 via-emerald-600 to-teal-600 hover:from-amber-600 hover:to-teal-700 shadow-emerald-600/25'
-                : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/25'
-            }`}
+            className={`w-full sm:w-auto px-8 py-4 text-white font-extrabold text-base rounded-2xl shadow-lg transition-all hover:-translate-y-0.5 flex items-center justify-center disabled:opacity-50 ${mode === 'recommend'
+              ? 'bg-gradient-to-r from-amber-500 via-emerald-600 to-teal-600 hover:from-amber-600 hover:to-teal-700 shadow-emerald-600/25'
+              : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/25'
+              }`}
           >
             {submitting ? (
               <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
@@ -1149,15 +1143,14 @@ const PredictPage = () => {
                     <tr key={rec.crop} className="hover:bg-emerald-50/40 transition-colors">
                       <td className="px-5 py-3.5">
                         <span
-                          className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-black ${
-                            rec.rank === 1
-                              ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                              : rec.rank === 2
-                                ? 'bg-slate-200 text-slate-800'
-                                : rec.rank === 3
-                                  ? 'bg-orange-100 text-orange-800'
-                                  : 'bg-slate-100 text-slate-600'
-                          }`}
+                          className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-black ${rec.rank === 1
+                            ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                            : rec.rank === 2
+                              ? 'bg-slate-200 text-slate-800'
+                              : rec.rank === 3
+                                ? 'bg-orange-100 text-orange-800'
+                                : 'bg-slate-100 text-slate-600'
+                            }`}
                         >
                           #{rec.rank}
                         </span>

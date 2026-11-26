@@ -9,6 +9,7 @@ import {
   BarChart3,
   Map,
   SlidersHorizontal,
+  Stethoscope,
   ShieldCheck,
   Users,
   FileSpreadsheet,
@@ -71,6 +72,10 @@ const Sidebar = ({ isOpen, onClose }) => {
             <NavLink to="/simulator" onClick={onClose} className={navItemClass}>
               <SlidersHorizontal className="w-4 h-4 flex-shrink-0" />
               <span>{isHindi ? 'व्हाट-इफ़ सिम्युलेटर' : 'What-If Simulator'}</span>
+            </NavLink>
+            <NavLink to="/crop-doctor" onClick={onClose} className={navItemClass}>
+              <Stethoscope className="w-4 h-4 flex-shrink-0" />
+              <span>{isHindi ? 'फसल डॉक्टर (Crop Doctor)' : 'Crop Doctor'}</span>
             </NavLink>
             <NavLink to="/history" onClick={onClose} className={navItemClass}>
               <History className="w-4 h-4 flex-shrink-0" />

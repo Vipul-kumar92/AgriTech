@@ -352,12 +352,22 @@ async def get_crop_economics(
     fertilizer: float = 0.0,
     pesticide: float = 0.0,
     fertilizer_kg: float = 0.0,
-    pesticide_kg: float = 0.0
+    pesticide_kg: float = 0.0,
+    mandi_rate: Optional[float] = Query(None, gt=0, description="Optional custom local Mandi price (INR/quintal)"),
+    season: str = Query("Kharif", description="Cropping season for PMFBY premium rate (Kharif/Rabi)")
 ):
-    """Calculate farm revenue based on Government MSP and chemical input costs."""
+    """Calculate farm revenue (MSP vs Local Mandi), PMFBY insurance premium, and KCC loan eligibility."""
     actual_fert = fertilizer_kg if fertilizer_kg > 0 else fertilizer
     actual_pest = pesticide_kg if pesticide_kg > 0 else pesticide
-    return calculate_farm_economics(crop, area, predicted_yield, actual_fert, actual_pest)
+    return calculate_farm_economics(
+        crop,
+        area,
+        predicted_yield,
+        actual_fert,
+        actual_pest,
+        mandi_rate_inr=mandi_rate,
+        season=season,
+    )
 
 @router.post("/simulate", response_model=Dict[str, Any])
 async def simulate_what_if_scenarios(req: SimulationRequest):

@@ -93,34 +93,127 @@ DEFAULT_MSP_FALLBACK = 2200.0  # INR per quintal default reference
 AVG_FERTILIZER_PRICE_PER_KG = 14.5  # Composite subsidized Urea/DAP/NPK (INR/kg)
 AVG_PESTICIDE_PRICE_PER_KG = 450.0  # Chemical plant protection agents (INR/kg)
 
-def calculate_farm_economics(crop: str, area_ha: float, predicted_yield_t_ha: float, fertilizer_kg: float, pesticide_kg: float) -> Dict[str, Any]:
+COMMERCIAL_HORTI_CROPS = {
+    "Sugarcane", "Cotton", "Cotton(lint)", "Potato", "Onion", "Banana",
+    "Tapioca", "Sweet potato", "Ginger", "Turmeric", "Dry chillies", "Garlic",
+    "Jute", "Mesta", "Tobacco", "Arecanut", "Black pepper", "Cardamom", "Cashewnut",
+}
+
+SCALE_OF_FINANCE_PER_HA_INR: Dict[str, float] = {
+    "Sugarcane": 135000.0,
+    "Potato": 125000.0,
+    "Onion": 110000.0,
+    "Banana": 145000.0,
+    "Ginger": 130000.0,
+    "Turmeric": 120000.0,
+    "Dry chillies": 115000.0,
+    "Garlic": 115000.0,
+    "Cotton": 88000.0,
+    "Cotton(lint)": 88000.0,
+    "Rice": 72000.0,
+    "Paddy": 72000.0,
+    "Wheat": 68000.0,
+    "Maize": 56000.0,
+    "Groundnut": 64000.0,
+    "Soyabean": 52000.0,
+    "Soybean": 52000.0,
+    "Rapeseed &Mustard": 52000.0,
+    "Mustard": 52000.0,
+}
+
+
+def calculate_pmfby_and_kcc(crop: str, area_ha: float, season: str = "Kharif") -> Dict[str, Any]:
     """
-    Calculate government MSP valuation, gross revenue, input chemical costs, and net farm return.
+    Calculate PMFBY Crop Insurance Sum Insured & Farmer Premium Cap
+    (Kharif 2%, Rabi 1.5%, Commercial/Horticultural 5%) plus KCC Crop Loan eligibility.
+    """
+    cleaned_crop = crop.strip()
+    cleaned_season = season.strip().lower()
+    safe_area = max(0.01, float(area_ha))
+
+    if cleaned_crop in COMMERCIAL_HORTI_CROPS:
+        farmer_premium_pct = 5.0
+        pmfby_tier = "Commercial / Horticultural (5% Cap)"
+    elif cleaned_season == "rabi":
+        farmer_premium_pct = 1.5
+        pmfby_tier = "Rabi Food & Oilseeds (1.5% Cap)"
+    else:
+        farmer_premium_pct = 2.0
+        pmfby_tier = "Kharif / Seasonal Food & Oilseeds (2.0% Cap)"
+
+    scale_per_ha = SCALE_OF_FINANCE_PER_HA_INR.get(cleaned_crop, 50000.0)
+    sum_insured_inr = round(scale_per_ha * safe_area, 2)
+    farmer_premium_inr = round(sum_insured_inr * (farmer_premium_pct / 100.0), 2)
+
+    # KCC norm: Scale of Finance + 10% post-harvest/consumption allowance
+    kcc_limit_inr = round(sum_insured_inr * 1.10, 2)
+    prompt_cap_inr = 300000.0
+    subvented_principal = min(kcc_limit_inr, prompt_cap_inr)
+    excess_principal = max(0.0, kcc_limit_inr - prompt_cap_inr)
+    estimated_annual_interest_inr = round((subvented_principal * 0.04) + (excess_principal * 0.07), 2)
+
+    return {
+        "pmfby_tier": pmfby_tier,
+        "farmer_premium_pct": farmer_premium_pct,
+        "scale_of_finance_per_ha_inr": scale_per_ha,
+        "sum_insured_inr": sum_insured_inr,
+        "farmer_premium_inr": farmer_premium_inr,
+        "kcc_eligible_limit_inr": kcc_limit_inr,
+        "collateral_free_limit_inr": 160000.0,
+        "effective_interest_rate_pct": 4.0,
+        "prompt_repay_cap_inr": prompt_cap_inr,
+        "estimated_1yr_interest_inr": estimated_annual_interest_inr,
+    }
+
+
+def calculate_farm_economics(
+    crop: str,
+    area_ha: float,
+    predicted_yield_t_ha: float,
+    fertilizer_kg: float,
+    pesticide_kg: float,
+    mandi_rate_inr: Optional[float] = None,
+    season: str = "Kharif"
+) -> Dict[str, Any]:
+    """
+    Calculate government MSP or custom local Mandi valuation, gross revenue, input chemical costs,
+    net farm return, PMFBY crop insurance premium, and KCC crop loan eligibility.
     """
     cleaned_crop = crop.strip()
     msp_per_quintal = MSP_RATES_INR_PER_QUINTAL.get(cleaned_crop, DEFAULT_MSP_FALLBACK)
-    msp_per_tonne = msp_per_quintal * 10.0  # 1 tonne = 10 quintals
-    
+    has_custom_mandi = mandi_rate_inr is not None and float(mandi_rate_inr) > 0
+    applied_per_quintal = float(mandi_rate_inr) if has_custom_mandi else msp_per_quintal
+    applied_per_tonne = applied_per_quintal * 10.0  # 1 tonne = 10 quintals
+
     total_production_tonnes = predicted_yield_t_ha * area_ha
     total_production_quintals = total_production_tonnes * 10.0
-    
-    gross_revenue_inr = total_production_quintals * msp_per_quintal
-    
+
+    msp_gross_revenue_inr = total_production_quintals * msp_per_quintal
+    gross_revenue_inr = total_production_quintals * applied_per_quintal
+
     fertilizer_cost_inr = fertilizer_kg * AVG_FERTILIZER_PRICE_PER_KG
     pesticide_cost_inr = pesticide_kg * AVG_PESTICIDE_PRICE_PER_KG
     total_chemical_cost_inr = fertilizer_cost_inr + pesticide_cost_inr
-    
+
     estimated_net_return_inr = max(0.0, gross_revenue_inr - total_chemical_cost_inr)
-    
+    msp_net_return_inr = max(0.0, msp_gross_revenue_inr - total_chemical_cost_inr)
+    mandi_vs_msp_diff_inr = round(gross_revenue_inr - msp_gross_revenue_inr, 2)
+    mandi_vs_msp_pct = round(((applied_per_quintal - msp_per_quintal) / msp_per_quintal) * 100.0, 1) if msp_per_quintal > 0 else 0.0
+
+    insurance_and_kcc = calculate_pmfby_and_kcc(cleaned_crop, area_ha, season=season)
+
     return {
         "crop": cleaned_crop,
+        "season": season,
         "area_hectares": area_ha,
         "predicted_yield_t_ha": round(predicted_yield_t_ha, 2),
         "total_production_tonnes": round(total_production_tonnes, 2),
         "total_production_quintals": round(total_production_quintals, 2),
+        "price_mode": "LOCAL_MANDI" if has_custom_mandi else "MSP",
         "msp_rate_per_quintal_inr": msp_per_quintal,
         "msp_per_quintal_inr": msp_per_quintal,
-        "msp_rate_per_tonne_inr": msp_per_tonne,
+        "applied_rate_per_quintal_inr": round(applied_per_quintal, 2),
+        "msp_rate_per_tonne_inr": applied_per_tonne,
         "gross_revenue_inr": round(gross_revenue_inr, 2),
         "gross_revenue_lakhs": round(gross_revenue_inr / 100000.0, 2),
         "fertilizer_cost_inr": round(fertilizer_cost_inr, 2),
@@ -130,9 +223,30 @@ def calculate_farm_economics(crop: str, area_ha: float, predicted_yield_t_ha: fl
         "estimated_net_return_inr": round(estimated_net_return_inr, 2),
         "net_farm_return_inr": round(estimated_net_return_inr, 2),
         "estimated_net_return_lakhs": round(estimated_net_return_inr / 100000.0, 2),
+        "msp_net_return_inr": round(msp_net_return_inr, 2),
+        "mandi_vs_msp_diff_inr": mandi_vs_msp_diff_inr,
+        "mandi_vs_msp_pct": mandi_vs_msp_pct,
         "profit_margin_percent": round(((estimated_net_return_inr / gross_revenue_inr) * 100.0) if gross_revenue_inr > 0 else 0.0, 1),
         "profit_margin_pct": round(((estimated_net_return_inr / gross_revenue_inr) * 100.0) if gross_revenue_inr > 0 else 0.0, 1),
-        "pricing_source": "Government of India CACP / MSP 2024–25 Gazette"
+        "pmfby_insurance": {
+            "tier": insurance_and_kcc["pmfby_tier"],
+            "farmer_premium_pct": insurance_and_kcc["farmer_premium_pct"],
+            "scale_of_finance_per_ha_inr": insurance_and_kcc["scale_of_finance_per_ha_inr"],
+            "sum_insured_inr": insurance_and_kcc["sum_insured_inr"],
+            "farmer_premium_inr": insurance_and_kcc["farmer_premium_inr"],
+        },
+        "kcc_eligibility": {
+            "eligible_limit_inr": insurance_and_kcc["kcc_eligible_limit_inr"],
+            "collateral_free_limit_inr": insurance_and_kcc["collateral_free_limit_inr"],
+            "effective_interest_rate_pct": insurance_and_kcc["effective_interest_rate_pct"],
+            "prompt_repay_cap_inr": insurance_and_kcc["prompt_repay_cap_inr"],
+            "estimated_1yr_interest_inr": insurance_and_kcc["estimated_1yr_interest_inr"],
+        },
+        "pricing_source": (
+            "Local Mandi Market Rate (Compared against CACP MSP)"
+            if has_custom_mandi
+            else "Government of India CACP / MSP 2024–25 Gazette"
+        )
     }
 
 def run_what_if_simulation(

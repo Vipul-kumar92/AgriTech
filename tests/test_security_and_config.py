@@ -74,3 +74,23 @@ def test_google_client_id_requires_admin_and_validates_format():
                     headers={"Authorization": f"Bearer {admin_token}"},
                 )
                 assert res_bad.status_code == 400
+
+
+def test_pwa_manifest_service_worker_and_icons_exist():
+    """Verify installable PWA manifest, service worker, offline page, and app icons exist."""
+    import json
+    from pathlib import Path
+
+    pub_dir = Path("frontend/public")
+    manifest_path = pub_dir / "manifest.webmanifest"
+    assert manifest_path.is_file()
+    assert (pub_dir / "sw.js").is_file()
+    assert (pub_dir / "offline.html").is_file()
+    assert (pub_dir / "pwa-192x192.png").is_file()
+    assert (pub_dir / "pwa-512x512.png").is_file()
+    assert (pub_dir / "apple-touch-icon.png").is_file()
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["display"] == "standalone"
+    assert len(manifest["icons"]) >= 2
+

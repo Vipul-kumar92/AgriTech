@@ -17,6 +17,7 @@ from backend.app.routes.analytics import router as analytics_router
 from backend.app.routes.models_info import router as models_router
 from backend.app.routes.feedback import router as feedback_router
 from backend.app.routes.admin import router as admin_router
+from backend.app.routes.crop_doctor import router as crop_doctor_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -70,6 +71,7 @@ app.include_router(analytics_router, prefix="/api")
 app.include_router(models_router, prefix="/api")
 app.include_router(feedback_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
+app.include_router(crop_doctor_router, prefix="/api")
 
 @app.get("/api/health", tags=["Health"])
 async def health_check():

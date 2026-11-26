@@ -245,3 +245,214 @@ export function buildFarmingAdvisory({
             : (isHindi ? 'सामान्य फसल प्रोफ़ाइल' : 'Regional Crop Profile'),
   };
 }
+
+function classifyShcLevel(value, lowMax, highMin, isHindi) {
+  if (value < lowMax) {
+    return { code: 'LOW', label: isHindi ? 'कम (Low)' : 'Low', factor: 1.25, tone: 'red' };
+  }
+  if (value > highMin) {
+    return { code: 'HIGH', label: isHindi ? 'अधिक (High)' : 'High', factor: 0.75, tone: 'emerald' };
+  }
+  return { code: 'MEDIUM', label: isHindi ? 'मध्यम (Medium)' : 'Medium', factor: 1.0, tone: 'amber' };
+}
+
+/**
+ * Interactive Soil Health Card (SHC) Prescription Engine:
+ * Takes soil N, P, K (kg/ha), pH, and Organic Carbon (%), classifies soil fertility status,
+ * scales crop target-yield nutrient need, and returns exact Urea/DAP/MOP/Zinc/Gypsum/Lime bags.
+ */
+export function calculateSoilHealthPrescription({
+  crop = 'Rice',
+  area = 1,
+  predictedYield = 3.5,
+  soilN = 240,
+  soilP = 14,
+  soilK = 190,
+  soilPh = 7.1,
+  organicCarbon = 0.52,
+  isHindi = false,
+}) {
+  const cropKey = String(crop).trim().toLowerCase();
+  const safeArea = Math.max(0.1, Number(area) || 1);
+  const nVal = Math.max(0, Number(soilN) || 0);
+  const pVal = Math.max(0, Number(soilP) || 0);
+  const kVal = Math.max(0, Number(soilK) || 0);
+  const phVal = Math.min(10.5, Math.max(3.5, Number(soilPh) || 7.0));
+  const ocVal = Math.max(0, Number(organicCarbon) || 0);
+
+  const isPulse = PULSE_CROPS.has(cropKey);
+  const isOilseed = OILSEED_CROPS.has(cropKey);
+  const isCash = CASH_HORTI_CROPS.has(cropKey);
+
+  // Indian Soil Health Card standard fertility ratings
+  const nStatus = classifyShcLevel(nVal, 280, 560, isHindi);
+  const pStatus = classifyShcLevel(pVal, 10, 25, isHindi);
+  const kStatus = classifyShcLevel(kVal, 108, 280, isHindi);
+  const ocStatus = classifyShcLevel(ocVal, 0.5, 0.75, isHindi);
+
+  let phStatus;
+  let amendment = null;
+
+  if (phVal < 5.5) {
+    phStatus = { code: 'STRONGLY_ACIDIC', label: isHindi ? 'अत्यधिक अम्लीय' : 'Strongly Acidic', tone: 'red' };
+    const limeKg = Math.round(500 * safeArea);
+    amendment = {
+      type: 'LIME',
+      product: isHindi ? 'कृषि चूना (Agricultural Lime)' : 'Agricultural Lime (CaCO₃)',
+      totalKg: limeKg,
+      bags50Kg: +(limeKg / 50).toFixed(1),
+      note: isHindi
+        ? 'अम्लता सुधार हेतु बुवाई से 15–20 दिन पहले मिट्टी में चूना मिलाएं।'
+        : 'Incorporate Lime 15–20 days before sowing to neutralize strong soil acidity.',
+    };
+  } else if (phVal < 6.5) {
+    phStatus = { code: 'SLIGHTLY_ACIDIC', label: isHindi ? 'हल्की अम्लीय' : 'Slightly Acidic', tone: 'amber' };
+    const limeKg = Math.round(250 * safeArea);
+    amendment = {
+      type: 'LIME',
+      product: isHindi ? 'हल्का चूना सुधार (Lime)' : 'Agricultural Lime (Light Dose)',
+      totalKg: limeKg,
+      bags50Kg: +(limeKg / 50).toFixed(1),
+      note: isHindi
+        ? 'फॉस्फोरस उपलब्धता बढ़ाने के लिए बुवाई से पूर्व हल्का चूना डालें।'
+        : 'Apply light Lime ahead of sowing to improve phosphorus availability.',
+    };
+  } else if (phVal <= 7.5) {
+    phStatus = { code: 'NEUTRAL', label: isHindi ? 'उदासीन (उत्तम pH)' : 'Neutral (Optimal)', tone: 'emerald' };
+  } else if (phVal <= 8.3) {
+    phStatus = { code: 'SLIGHTLY_ALKALINE', label: isHindi ? 'हल्की क्षारीय' : 'Slightly Alkaline', tone: 'amber' };
+    const gypKg = Math.round(250 * safeArea);
+    amendment = {
+      type: 'GYPSUM',
+      product: isHindi ? 'कृषि जिप्सम (Gypsum)' : 'Agricultural Gypsum (CaSO₄·2H₂O)',
+      totalKg: gypKg,
+      bags50Kg: +(gypKg / 50).toFixed(1),
+      note: isHindi
+        ? 'क्षारीय मिट्टी में सल्फर और कैल्शियम संतुलन हेतु जिप्सम मिलाएं।'
+        : 'Incorporate Gypsum before pre-sowing irrigation to counter mild alkalinity.',
+    };
+  } else {
+    phStatus = { code: 'SODIC', label: isHindi ? 'अधिक क्षारीय / ऊसर' : 'Strongly Alkaline / Sodic', tone: 'red' };
+    const gypKg = Math.round(600 * safeArea);
+    amendment = {
+      type: 'GYPSUM',
+      product: isHindi ? 'ऊसर सुधार जिप्सम (Gypsum Reclamation)' : 'Gypsum Reclamation Dose',
+      totalKg: gypKg,
+      bags50Kg: +(gypKg / 50).toFixed(1),
+      note: isHindi
+        ? 'सोडियम विषाक्तता कम करने हेतु बुवाई से 2–3 सप्ताह पहले जिप्सम + लीचिंग करें।'
+        : 'Apply Gypsum 2–3 weeks before sowing followed by light leaching to reclaim sodicity.',
+    };
+  }
+
+  // ICAR Crop Baseline Target NPK (kg/ha) + gentle target-yield multiplier
+  let baseN = 120;
+  let baseP = 60;
+  let baseK = 40;
+  let refYield = 3.5;
+
+  if (isPulse) {
+    baseN = 25;
+    baseP = 50;
+    baseK = 30;
+    refYield = 1.2;
+  } else if (isOilseed) {
+    baseN = 60;
+    baseP = 50;
+    baseK = 40;
+    refYield = 1.6;
+  } else if (isCash) {
+    baseN = cropKey === 'sugarcane' ? 220 : 160;
+    baseP = 80;
+    baseK = 80;
+    refYield = cropKey === 'sugarcane' ? 60 : 20;
+  }
+
+  const yieldRatio = Math.min(1.25, Math.max(0.85, (Number(predictedYield) || refYield) / refYield));
+  const targetNPerHa = Math.round(baseN * nStatus.factor * yieldRatio);
+  const targetPPerHa = Math.round(baseP * pStatus.factor * yieldRatio);
+  const targetKPerHa = Math.round(baseK * kStatus.factor * yieldRatio);
+
+  // Convert target NPK -> DAP (18-46-0), Urea (46-0-0), MOP (0-0-60)
+  const dapPerHa = targetPPerHa / 0.46;
+  const nFromDap = dapPerHa * 0.18;
+  const ureaPerHa = Math.max(0, targetNPerHa - nFromDap) / 0.46;
+  const mopPerHa = targetKPerHa / 0.60;
+
+  const totalDapKg = Math.round(dapPerHa * safeArea);
+  const totalUreaKg = Math.round(ureaPerHa * safeArea);
+  const totalMopKg = Math.round(mopPerHa * safeArea);
+
+  // Zinc Sulphate (21%): higher dose in alkaline/waterlogged Rice/Wheat or low OC soils
+  const zincPerHa = phVal >= 7.5 || ocVal < 0.5 || cropKey === 'rice' || cropKey === 'wheat' ? 25 : 12.5;
+  const totalZincKg = +(zincPerHa * safeArea).toFixed(1);
+
+  const fymTonnesPerHa = ocVal < 0.5 ? 8 : ocVal <= 0.75 ? 4 : 2;
+  const totalFymTonnes = +(fymTonnesPerHa * safeArea).toFixed(1);
+
+  // Split Urea across Basal (34%), Vegetative (33%), Flowering (33%) unless Pulse
+  const basalUreaKg = Math.round(totalUreaKg * (isPulse ? 1.0 : 0.34));
+  const top1UreaKg = isPulse ? 0 : Math.round(totalUreaKg * 0.33);
+  const top2UreaKg = isPulse ? 0 : Math.max(0, totalUreaKg - basalUreaKg - top1UreaKg);
+
+  const splitStages = [
+    {
+      id: 'basal',
+      phase: isHindi ? '1. बेसल खुराक (बुवाई के समय)' : '1. Basal Dose (At Sowing / Planting)',
+      timing: isHindi ? '0 दिन (जड़ क्षेत्र में मिलाएं)' : 'Day 0 (Incorporate into soil)',
+      ureaKg: basalUreaKg,
+      dapKg: totalDapKg,
+      mopKg: totalMopKg,
+      note: isHindi
+        ? `साथ में ${totalZincKg} kg जिंक सल्फेट व ${totalFymTonnes} टन गोबर खाद/कम्पोस्ट मिलाएं।`
+        : `Also apply ${totalZincKg} kg Zinc Sulphate & ${totalFymTonnes} t compost/FYM.`,
+    },
+    ...(!isPulse
+      ? [
+          {
+            id: 'top1',
+            phase: isHindi ? '2. पहली टॉप-ड्रेसिंग (वानस्पतिक वृद्धि)' : '2. First Top-Dressing (Tillering / Vegetative)',
+            timing: isHindi ? 'बुवाई के 25–30 दिन बाद' : '25–30 Days After Sowing',
+            ureaKg: top1UreaKg,
+            dapKg: 0,
+            mopKg: 0,
+            note: isHindi
+              ? 'हल्की सिंचाई के बाद छिड़काव करें।'
+              : 'Apply after light irrigation on moist field.',
+          },
+          {
+            id: 'top2',
+            phase: isHindi ? '3. दूसरी टॉप-ड्रेसिंग (बाली / फूल अवस्था)' : '3. Second Top-Dressing (Flowering / Heading)',
+            timing: isHindi ? 'बुवाई के 50–60 दिन बाद' : '50–60 Days After Sowing',
+            ureaKg: top2UreaKg,
+            dapKg: 0,
+            mopKg: 0,
+            note: isHindi
+              ? 'दाने के बेहतर वजन व भराव के लिए अंतिम नाइट्रोजन खुराक।'
+              : 'Final nitrogen top-dress for grain filling & yield realization.',
+          },
+        ]
+      : []),
+  ];
+
+  return {
+    statuses: {
+      n: nStatus,
+      p: pStatus,
+      k: kStatus,
+      oc: ocStatus,
+      ph: phStatus,
+    },
+    targetPerHa: { n: targetNPerHa, p2o5: targetPPerHa, k2o: targetKPerHa },
+    totalUreaKg,
+    totalDapKg,
+    totalMopKg,
+    totalZincKg,
+    totalFymTonnes,
+    ureaBags45Kg: +(totalUreaKg / 45).toFixed(1),
+    dapBags50Kg: +(totalDapKg / 50).toFixed(1),
+    mopBags50Kg: +(totalMopKg / 50).toFixed(1),
+    amendment,
+    splitStages,
+  };
+}

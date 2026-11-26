@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#059669" />
+    <title>Offline — KrishiPulse.AI</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: system-ui, -apple-system, sans-serif;
+        background: linear-gradient(135deg, #ecfdf5, #f0fdfa);
+        color: #0f172a;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+      .card {
+        max-width: 440px;
+        background: #ffffff;
+        border: 1px solid #a7f3d0;
+        border-radius: 24px;
+        padding: 28px;
+        text-align: center;
+        box-shadow: 0 12px 30px rgba(6, 78, 59, 0.08);
+      }
+      .badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 999px;
+        background: #d1fae5;
+        color: #065f46;
+        font-size: 12px;
+        font-weight: 700;
+        margin-bottom: 12px;
+      }
+      h1 { font-size: 20px; margin: 0 0 8px; }
+      p { font-size: 14px; color: #475569; line-height: 1.5; margin: 0 0 20px; }
+      button {
+        background: #059669;
+        color: #ffffff;
+        border: none;
+        border-radius: 14px;
+        padding: 12px 22px;
+        font-weight: 700;
+        font-size: 14px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="badge">KrishiPulse.AI Offline Mode</div>
+      <h1>इंटरनेट कनेक्शन उपलब्ध नहीं है / You are Offline</h1>
+      <p>
+        Please reconnect to mobile data or Wi-Fi to run live ML predictions and Open-Meteo weather updates. Previously cached advisories remain available once the app shell reloads.
+      </p>
+      <button onclick="window.location.reload()">पुनः प्रयास करें / Retry Connection</button>
+    </div>
+  </body>
+</html>

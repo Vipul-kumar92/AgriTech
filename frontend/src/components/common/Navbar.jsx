@@ -13,7 +13,8 @@ import {
   Home,
   Menu,
   X,
-  Info
+  Info,
+  Stethoscope
 } from 'lucide-react';
 
 const Navbar = ({ onToggleSidebar }) => {
@@ -92,6 +93,18 @@ const Navbar = ({ onToggleSidebar }) => {
             >
               <SlidersHorizontal className={`w-3.5 h-3.5 ${location.pathname === '/simulator' ? 'text-white' : 'text-amber-600'}`} />
               <span>{t('what_if_lab', 'What-If Lab')}</span>
+            </Link>
+
+            <Link
+              to="/crop-doctor"
+              className={`flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                location.pathname === '/crop-doctor'
+                  ? 'bg-emerald-600 text-white shadow-sm font-extrabold'
+                  : 'text-slate-700 hover:text-emerald-800 hover:bg-emerald-50/80'
+              }`}
+            >
+              <Stethoscope className={`w-3.5 h-3.5 ${location.pathname === '/crop-doctor' ? 'text-white' : 'text-rose-600'}`} />
+              <span>{isHindi ? 'फसल डॉक्टर' : 'Crop Doctor'}</span>
             </Link>
           </nav>
         )}
@@ -202,6 +215,15 @@ const Navbar = ({ onToggleSidebar }) => {
             >
               <SlidersHorizontal className="w-4 h-4 text-amber-600" />
               <span>{t('what_if_lab', 'What-If Lab')}</span>
+            </Link>
+
+            <Link
+              to="/crop-doctor"
+              onClick={() => setMobileMenuOpen(false)}
+              className="flex items-center space-x-2.5 px-3 py-2 rounded-xl text-sm font-bold text-slate-700 hover:bg-emerald-50 hover:text-emerald-800 transition-colors"
+            >
+              <Stethoscope className="w-4 h-4 text-rose-600" />
+              <span>{isHindi ? 'फसल डॉक्टर' : 'Crop Doctor'}</span>
             </Link>
 
             <Link

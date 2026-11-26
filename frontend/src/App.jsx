@@ -26,8 +26,10 @@ const AdminPredictionsPage = lazy(() => import('./pages/AdminPredictionsPage'));
 const AboutPage = lazy(() => import('./pages/AboutPage'));
 const AgriMapPage = lazy(() => import('./pages/AgriMapPage'));
 const SensitivitySimulatorPage = lazy(() => import('./pages/SensitivitySimulatorPage'));
+const CropDoctorPage = lazy(() => import('./pages/CropDoctorPage'));
 
 import MobileBottomNav from './components/common/MobileBottomNav';
+import PwaInstallPrompt from './components/common/PwaInstallPrompt';
 
 // Protected Route Guard
 const ProtectedRoute = ({ children, requireAdmin = false }) => {
@@ -98,6 +100,7 @@ const AppLayout = () => {
                 <Route path="/analytics" element={<AnalyticsPage />} />
                 <Route path="/map" element={<AgriMapPage />} />
                 <Route path="/simulator" element={<SensitivitySimulatorPage />} />
+                <Route path="/crop-doctor" element={<CropDoctorPage />} />
                 <Route path="/predict" element={<PredictPage />} />
                 <Route path="/predict/result/:id" element={<PredictionResultPage />} />
 
@@ -167,6 +170,7 @@ const AppLayout = () => {
 
       {/* Floating Mobile Bottom Navigation for Thumb-Reach Usability */}
       <MobileBottomNav />
+      <PwaInstallPrompt />
     </div>
   );
 };

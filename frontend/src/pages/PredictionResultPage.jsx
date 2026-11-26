@@ -3,7 +3,7 @@ import { useParams, useLocation, Link } from 'react-router-dom';
 import api from '../services/api';
 import { useLanguage } from '../context/LanguageContext';
 import { LoadingSpinner } from '../components/common/StatCard';
-import { buildFarmingAdvisory } from '../utils/farmingAdvisory';
+import { buildFarmingAdvisory, calculateSoilHealthPrescription } from '../utils/farmingAdvisory';
 import {
   Sprout,
   CheckCircle,
@@ -18,7 +18,10 @@ import {
   Download,
   Droplets,
   Beaker,
-  Wheat
+  Wheat,
+  Stethoscope,
+  ShieldCheck,
+  Landmark
 } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell } from 'recharts';
 
@@ -33,14 +36,26 @@ const PredictionResultPage = () => {
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
-  // Economic MSP state
+  // Economic MSP + Mandi Comparator state
   const [economics, setEconomics] = useState(null);
   const [loadingEconomics, setLoadingEconomics] = useState(false);
+  const [priceMode, setPriceMode] = useState('msp');
+  const [customMandiRate, setCustomMandiRate] = useState('');
 
   // Voice advisory state
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [activeSpeechLang, setActiveSpeechLang] = useState(null);
   const [speechNotice, setSpeechNotice] = useState('');
+
+  // Soil Health Card interactive calculator state
+  const [advisoryMode, setAdvisoryMode] = useState('standard');
+  const [soilCard, setSoilCard] = useState({
+    n: 240,
+    p: 14,
+    k: 190,
+    ph: 7.2,
+    oc: 0.52
+  });
 
   useEffect(() => {
     if (!prediction && id) {
@@ -66,6 +81,7 @@ const PredictionResultPage = () => {
         try {
           const inputs = prediction.input_summary || prediction.input_features || {};
           const crop = inputs.crop || 'Rice';
+          const season = inputs.season || 'Kharif';
           const yieldVal = prediction.predicted_yield || 3.5;
           const area = inputs.area_hectares || inputs.area || 1.0;
           const fertilizer = inputs.fertilizer_kg || inputs.fertilizer || 100.0;
@@ -74,6 +90,7 @@ const PredictionResultPage = () => {
           const res = await api.get('/economics/msp', {
             params: {
               crop,
+              season,
               predicted_yield: yieldVal,
               area,
               fertilizer_kg: fertilizer,
@@ -81,6 +98,7 @@ const PredictionResultPage = () => {
             }
           });
           setEconomics(res.data);
+          setCustomMandiRate(String(Math.round((res.data.msp_per_quintal_inr || 2200) * 1.1)));
         } catch (err) {
           console.warn('Economics API failed:', err);
         } finally {
@@ -184,7 +202,13 @@ const PredictionResultPage = () => {
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
 
-    const splitRows = adv.splitStages
+    const activeStages = advisoryMode === 'soil_card' ? shcPrescription.splitStages : adv.splitStages;
+    const activeBagsHeader =
+      advisoryMode === 'soil_card'
+        ? `Soil Health Card Prescription (~${shcPrescription.ureaBags45Kg} Urea / ${shcPrescription.dapBags50Kg} DAP / ${shcPrescription.mopBags50Kg} MOP bags • Zinc ${shcPrescription.totalZincKg} kg)`
+        : `${adv.totalFertilizerKg} kg total • ~${adv.ureaBags45Kg} Urea / ${adv.dapBags50Kg} DAP / ${adv.mopBags50Kg} MOP bags`;
+
+    const splitRows = activeStages
       .map(
         (st) => `
           <tr>
@@ -229,7 +253,7 @@ const PredictionResultPage = () => {
     <div class="card"><small>Sowing & Harvest Window</small><br/><strong>${escapeHtml(adv.sowingWindow)}</strong><br/><small>Harvest: ${escapeHtml(adv.harvestWindow)}</small></div>
     <div class="card"><small>Est. Net MSP Return</small><br/><strong style="font-size:20px;">₹${economics ? Math.round(economics.net_farm_return_inr).toLocaleString('en-IN') : 'N/A'}</strong><br/><small>Area: ${areaVal} ha</small></div>
   </div>
-  <h2>Fertilizer Split Schedule (${adv.totalFertilizerKg} kg total • ~${adv.ureaBags45Kg} Urea / ${adv.dapBags50Kg} DAP / ${adv.mopBags50Kg} MOP bags)</h2>
+  <h2>Fertilizer Split Schedule (${escapeHtml(activeBagsHeader)})</h2>
   <table>
     <thead><tr><th>Stage & Timing</th><th>Urea (46% N)</th><th>DAP (18-46-0)</th><th>MOP (60% K)</th><th>Guidance</th></tr></thead>
     <tbody>${splitRows}</tbody>
@@ -286,6 +310,17 @@ const PredictionResultPage = () => {
   }
 
   const inputs = prediction.input_summary || prediction.input_features || {};
+  const mspBaseRate = Number(economics?.msp_per_quintal_inr || 0);
+  const mandiNumeric = Math.max(1, Number(customMandiRate) || mspBaseRate);
+  const activePriceRate = priceMode === 'mandi' ? mandiNumeric : mspBaseRate;
+  const totalQuintals = Number(economics?.total_production_quintals || 0);
+  const chemCostInr = Number(economics?.total_chemical_cost_inr || 0);
+  const activeGrossInr = totalQuintals * activePriceRate;
+  const activeNetInr = Math.max(0, activeGrossInr - chemCostInr);
+  const activeGrossLakhs = +(activeGrossInr / 100000).toFixed(2);
+  const activeMarginPct = activeGrossInr > 0 ? +((activeNetInr / activeGrossInr) * 100).toFixed(1) : 0;
+  const mandiVsMspDiffInr = Math.round(activeGrossInr - Number(economics?.gross_revenue_inr || 0));
+  const mandiVsMspPct = mspBaseRate > 0 ? +(((activePriceRate - mspBaseRate) / mspBaseRate) * 100).toFixed(1) : 0;
   const advisory = buildFarmingAdvisory({
     crop: inputs.crop || 'Rice',
     season: inputs.season || 'Kharif',
@@ -293,6 +328,18 @@ const PredictionResultPage = () => {
     fertilizerKg: inputs.fertilizer_kg ?? inputs.fertilizer ?? 100,
     isHindi
   });
+  const shcPrescription = calculateSoilHealthPrescription({
+    crop: inputs.crop || 'Rice',
+    area: inputs.area_hectares || inputs.area || 1,
+    predictedYield: prediction.predicted_yield || 3.5,
+    soilN: soilCard.n,
+    soilP: soilCard.p,
+    soilK: soilCard.k,
+    soilPh: soilCard.ph,
+    organicCarbon: soilCard.oc,
+    isHindi
+  });
+  const activeAdvisoryData = advisoryMode === 'soil_card' ? shcPrescription : advisory;
   const influenceData = prediction.feature_influence
     ? Object.entries(prediction.feature_influence).map(([key, val]) => ({
         feature: key.replace(/_/g, ' '),
@@ -447,14 +494,16 @@ const PredictionResultPage = () => {
         </div>
       </div>
 
-      {/* Next-Level Module: Government MSP Economic Revenue & Return Calculator */}
+      {/* Next-Level Module: Government MSP vs Local Mandi + PMFBY Insurance & KCC Eligibility */}
       {economics && (
         <div className="bg-white/90 backdrop-blur-md rounded-2xl p-6 sm:p-8 border border-emerald-100 shadow-sm space-y-6">
-          <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-100 gap-2">
+          <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-100 gap-3">
             <div className="flex items-center space-x-2">
               <IndianRupee className="w-5 h-5 text-emerald-600" />
               <h3 className="text-base font-bold text-slate-900">
-                {isHindi ? 'सरकारी एमएसपी (MSP) आय एवं आर्थिक लाभ विश्लेषण' : 'Government MSP Farm Revenue & Economic Return Analysis'}
+                {isHindi
+                  ? 'MSP बनाम स्थानीय मंडी आय, PMFBY बीमा और KCC पात्रता'
+                  : 'MSP vs Local Mandi Revenue, PMFBY Insurance & KCC Loan'}
               </h3>
             </div>
             <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
@@ -462,13 +511,76 @@ const PredictionResultPage = () => {
             </span>
           </div>
 
+          {/* Interactive MSP vs Local Mandi Rate Comparator Bar */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-4 print:hidden">
+            <div className="inline-flex p-1 rounded-xl bg-white border border-slate-200 shadow-xs self-start">
+              <button
+                type="button"
+                onClick={() => setPriceMode('msp')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  priceMode === 'msp' ? 'bg-emerald-600 text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {isHindi ? `सरकारी MSP (₹${mspBaseRate.toLocaleString('en-IN')}/q)` : `Official MSP (₹${mspBaseRate.toLocaleString('en-IN')}/q)`}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPriceMode('mandi')}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                  priceMode === 'mandi' ? 'bg-amber-500 text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {isHindi ? 'स्थानीय मंडी भाव (Local Mandi)' : 'Local Mandi Rate'}
+              </button>
+            </div>
+
+            {priceMode === 'mandi' && (
+              <div className="flex flex-wrap items-center gap-2.5">
+                <div className="flex items-center space-x-2 bg-white border border-amber-300 rounded-xl px-3 py-1.5">
+                  <span className="text-xs font-bold text-slate-600">₹</span>
+                  <input
+                    type="number"
+                    min="100"
+                    step="25"
+                    value={customMandiRate}
+                    onChange={(e) => setCustomMandiRate(e.target.value)}
+                    aria-label="Local Mandi Price INR per quintal"
+                    className="w-24 text-sm font-black text-slate-900 focus:outline-none"
+                  />
+                  <span className="text-[11px] font-semibold text-slate-400">/ q</span>
+                </div>
+                {[-10, 10, 25].map((pct) => (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => setCustomMandiRate(String(Math.round(mspBaseRate * (1 + pct / 100))))}
+                    className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-amber-50 border border-slate-200 text-[11px] font-bold text-slate-700"
+                  >
+                    {pct > 0 ? `+${pct}% MSP` : `${pct}% MSP`}
+                  </button>
+                ))}
+                <span
+                  className={`px-2.5 py-1 rounded-lg text-xs font-extrabold ${
+                    mandiVsMspDiffInr >= 0
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-red-100 text-red-700'
+                  }`}
+                >
+                  {mandiVsMspDiffInr >= 0 ? '+' : ''}₹{mandiVsMspDiffInr.toLocaleString('en-IN')} ({mandiVsMspPct >= 0 ? '+' : ''}{mandiVsMspPct}%)
+                </span>
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200">
               <span className="text-[11px] font-semibold text-emerald-700 uppercase tracking-wider block">
-                {isHindi ? 'सरकारी एमएसपी दर' : 'Official MSP Rate'}
+                {priceMode === 'mandi'
+                  ? (isHindi ? 'चयनित मंडी भाव' : 'Active Mandi Rate')
+                  : (isHindi ? 'सरकारी एमएसपी दर' : 'Official MSP Rate')}
               </span>
               <p className="text-xl font-extrabold text-emerald-950 mt-1">
-                ₹{economics.msp_per_quintal_inr.toLocaleString('en-IN')}
+                ₹{activePriceRate.toLocaleString('en-IN')}
                 <span className="text-xs font-medium text-emerald-700"> {isHindi ? '/ क्विंटल' : '/ quintal'}</span>
               </p>
               <span className="text-[10px] text-emerald-600 mt-1 block">1 क्विंटल = 100 kg</span>
@@ -479,10 +591,10 @@ const PredictionResultPage = () => {
                 {isHindi ? 'अनुमानित सकल आमदनी' : 'Estimated Gross Revenue'}
               </span>
               <p className="text-xl font-extrabold text-blue-950 mt-1">
-                ₹{economics.gross_revenue_lakhs} <span className="text-xs font-medium text-blue-700">{isHindi ? 'लाख' : 'Lakhs'}</span>
+                ₹{activeGrossLakhs} <span className="text-xs font-medium text-blue-700">{isHindi ? 'लाख' : 'Lakhs'}</span>
               </p>
               <span className="text-[10px] text-blue-600 mt-1 block">
-                ₹{Math.round(economics.gross_revenue_inr).toLocaleString('en-IN')} {isHindi ? 'कुल' : 'Total'}
+                ₹{Math.round(activeGrossInr).toLocaleString('en-IN')} {isHindi ? 'कुल' : 'Total'}
               </span>
             </div>
 
@@ -491,7 +603,7 @@ const PredictionResultPage = () => {
                 {isHindi ? 'रासायनिक इनपुट लागत' : 'Input Chemical Costs'}
               </span>
               <p className="text-xl font-extrabold text-amber-950 mt-1">
-                ₹{Math.round(economics.total_chemical_cost_inr).toLocaleString('en-IN')}
+                ₹{Math.round(chemCostInr).toLocaleString('en-IN')}
               </p>
               <span className="text-[10px] text-amber-600 mt-1 block">{isHindi ? 'खाद एवं कीटनाशक' : 'Fertilizers & Pesticides'}</span>
             </div>
@@ -501,18 +613,95 @@ const PredictionResultPage = () => {
                 {isHindi ? 'अनुमानित शुद्ध किसान लाभ' : 'Estimated Net Farm Surplus'}
               </span>
               <p className="text-xl font-extrabold text-white mt-1">
-                ₹{Math.round(economics.net_farm_return_inr).toLocaleString('en-IN')}
+                ₹{Math.round(activeNetInr).toLocaleString('en-IN')}
               </p>
               <span className="text-[10px] text-emerald-200 mt-1 block font-bold">
-                {isHindi ? 'मार्जिन: ' : 'Margin: '}{economics.profit_margin_pct}%
+                {isHindi ? 'मार्जिन: ' : 'Margin: '}{activeMarginPct}%
               </span>
             </div>
           </div>
 
+          {/* PMFBY Crop Insurance & KCC Loan Eligibility Cards */}
+          {(economics.pmfby_insurance || economics.kcc_eligibility) && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+              {economics.pmfby_insurance && (
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50 via-white to-emerald-50 border border-sky-200 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center space-x-2 text-xs font-black uppercase tracking-wider text-sky-900">
+                      <ShieldCheck className="w-4 h-4 text-sky-600" />
+                      <span>{isHindi ? 'PMFBY फसल बीमा अनुमान' : 'PMFBY Crop Insurance Estimate'}</span>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 border border-sky-200 text-[11px] font-extrabold">
+                      {economics.pmfby_insurance.farmer_premium_pct}% {isHindi ? 'किसान प्रीमियम' : 'Farmer Cap'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="bg-white rounded-xl p-2.5 border border-slate-200">
+                      <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                        {isHindi ? 'बीमित राशि (Sum Insured)' : 'Total Sum Insured'}
+                      </span>
+                      <span className="text-base font-black text-slate-900">
+                        ₹{Math.round(economics.pmfby_insurance.sum_insured_inr).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div className="bg-white rounded-xl p-2.5 border border-sky-200">
+                      <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                        {isHindi ? 'देय प्रीमियम (आपका हिस्सा)' : 'Your Payable Premium'}
+                      </span>
+                      <span className="text-base font-black text-sky-700">
+                        ₹{Math.round(economics.pmfby_insurance.farmer_premium_inr).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-600">
+                    {economics.pmfby_insurance.tier} • ₹{economics.pmfby_insurance.scale_of_finance_per_ha_inr.toLocaleString('en-IN')}/ha Scale of Finance
+                  </p>
+                </div>
+              )}
+
+              {economics.kcc_eligibility && (
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50 via-white to-emerald-50 border border-amber-200 space-y-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center space-x-2 text-xs font-black uppercase tracking-wider text-amber-900">
+                      <Landmark className="w-4 h-4 text-amber-600" />
+                      <span>{isHindi ? 'किसान क्रेडिट कार्ड (KCC) ऋण सीमा' : 'KCC Crop Loan Eligibility'}</span>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200 text-[11px] font-extrabold">
+                      {economics.kcc_eligibility.effective_interest_rate_pct}% {isHindi ? 'ब्याज दर*' : 'Interest*'}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="bg-white rounded-xl p-2.5 border border-slate-200">
+                      <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                        {isHindi ? 'अनुमानित KCC ऋण सीमा' : 'Eligible KCC Limit'}
+                      </span>
+                      <span className="text-base font-black text-slate-900">
+                        ₹{Math.round(economics.kcc_eligibility.eligible_limit_inr).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                    <div className="bg-white rounded-xl p-2.5 border border-amber-200">
+                      <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                        {isHindi ? '1 वर्ष ब्याज (@4%/7%)' : 'Est. 1-Yr Interest'}
+                      </span>
+                      <span className="text-base font-black text-amber-800">
+                        ₹{Math.round(economics.kcc_eligibility.estimated_1yr_interest_inr).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-slate-600">
+                    {isHindi
+                      ? `*समय पर भुगतान पर ₹3 लाख तक 4% प्रभावी ब्याज; ₹${(economics.kcc_eligibility.collateral_free_limit_inr / 100000).toFixed(1)} लाख तक बिना गारंटी ऋण।`
+                      : `*Effective 4% interest up to ₹3L with timely repayment; collateral-free up to ₹${(economics.kcc_eligibility.collateral_free_limit_inr / 100000).toFixed(1)}L.`}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
           <p className="text-[11px] text-slate-500 italic">
             {isHindi
-              ? '* आर्थिक गणना भारत सरकार के न्यूनतम समर्थन मूल्य (MSP) और मानक उर्वरक/कीटनाशक लागत सूचकांकों पर आधारित है।'
-              : '* Economic calculation based on Government of India Minimum Support Prices (MSP) and CACP standard fertilizer/pesticide cost indices.'}
+              ? '* आर्थिक गणना भारत सरकार के न्यूनतम समर्थन मूल्य (MSP), PMFBY प्रीमियम सीमा (खरीफ 2%, रबी 1.5%, वाणिज्यिक 5%) और KCC मानकों पर आधारित है।'
+              : '* Calculations reflect CACP MSP 2024–25, PMFBY statutory farmer premium caps (2% Kharif, 1.5% Rabi, 5% Commercial/Horti), and NABARD KCC interest subvention norms.'}
           </p>
         </div>
       )}
@@ -556,6 +745,150 @@ const PredictionResultPage = () => {
           </div>
         </div>
 
+        {/* Advisory Calculator Mode Toggle */}
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-emerald-50/60 p-2 rounded-2xl border border-emerald-100 print:hidden">
+          <div className="inline-flex p-1 rounded-xl bg-white border border-slate-200 shadow-xs">
+            <button
+              type="button"
+              onClick={() => setAdvisoryMode('standard')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                advisoryMode === 'standard'
+                  ? 'bg-emerald-600 text-white'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {isHindi ? 'सामान्य खाद विभाजन' : 'Standard Input Split'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setAdvisoryMode('soil_card')}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                advisoryMode === 'soil_card'
+                  ? 'bg-gradient-to-r from-amber-500 to-emerald-600 text-white'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {isHindi ? 'मृदा स्वास्थ्य कार्ड (N-P-K-pH) कैलकुलेटर' : 'Soil Health Card (N-P-K-pH)'}
+            </button>
+          </div>
+
+          {advisoryMode === 'soil_card' && (
+            <div className="flex flex-wrap gap-1.5 text-[11px]">
+              <button
+                type="button"
+                onClick={() => setSoilCard({ n: 190, p: 8, k: 95, ph: 5.3, oc: 0.41 })}
+                className="px-2.5 py-1 rounded-lg bg-white hover:bg-amber-50 border border-slate-200 font-bold text-slate-700"
+              >
+                {isHindi ? 'कम NPK + अम्लीय' : 'Low NPK Acidic'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSoilCard({ n: 320, p: 16, k: 185, ph: 7.1, oc: 0.58 })}
+                className="px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-50 border border-slate-200 font-bold text-slate-700"
+              >
+                {isHindi ? 'मध्यम उपजाऊ' : 'Medium Alluvial'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSoilCard({ n: 210, p: 11, k: 240, ph: 8.5, oc: 0.38 })}
+                className="px-2.5 py-1 rounded-lg bg-white hover:bg-rose-50 border border-slate-200 font-bold text-slate-700"
+              >
+                {isHindi ? 'अधिक क्षारीय (ऊसर)' : 'High-pH Sodic'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Interactive Soil Health Card Panel */}
+        {advisoryMode === 'soil_card' && (
+          <div className="rounded-2xl border border-amber-200 bg-gradient-to-br from-amber-50/70 via-white to-emerald-50/60 p-4 sm:p-5 space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {[
+                { key: 'n', labelEn: 'Available N (kg/ha)', labelHi: 'उपलब्ध नाइट्रोजन (kg/ha)', step: 10, min: 0, max: 900, status: shcPrescription.statuses.n },
+                { key: 'p', labelEn: 'Available P (kg/ha)', labelHi: 'उपलब्ध फॉस्फोरस (kg/ha)', step: 1, min: 0, max: 120, status: shcPrescription.statuses.p },
+                { key: 'k', labelEn: 'Available K (kg/ha)', labelHi: 'उपलब्ध पोटाश (kg/ha)', step: 10, min: 0, max: 700, status: shcPrescription.statuses.k },
+                { key: 'ph', labelEn: 'Soil pH', labelHi: 'मिट्टी का pH', step: 0.1, min: 3.5, max: 10.5, status: shcPrescription.statuses.ph },
+                { key: 'oc', labelEn: 'Organic Carbon (%)', labelHi: 'जैविक कार्बन (%)', step: 0.05, min: 0, max: 3, status: shcPrescription.statuses.oc },
+              ].map((field) => {
+                const badgeCls =
+                  field.status.tone === 'red'
+                    ? 'bg-red-100 text-red-800 border-red-200'
+                    : field.status.tone === 'amber'
+                      ? 'bg-amber-100 text-amber-800 border-amber-200'
+                      : 'bg-emerald-100 text-emerald-800 border-emerald-200';
+                return (
+                  <div key={field.key} className="bg-white rounded-xl p-2.5 border border-slate-200 space-y-1.5">
+                    <label className="block text-[10px] font-bold uppercase text-slate-500 truncate">
+                      {isHindi ? field.labelHi : field.labelEn}
+                    </label>
+                    <input
+                      type="number"
+                      step={field.step}
+                      min={field.min}
+                      max={field.max}
+                      value={soilCard[field.key]}
+                      onChange={(e) =>
+                        setSoilCard((prev) => ({
+                          ...prev,
+                          [field.key]: parseFloat(e.target.value) || 0
+                        }))
+                      }
+                      className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-black text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${badgeCls}`}>
+                      {field.status.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Calculated SHC Dosage & Amendment Summary */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+              <div className="p-3 rounded-xl bg-white border border-emerald-200">
+                <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                  {isHindi ? 'यूरिया (45kg बोरी)' : 'Urea (45kg bags)'}
+                </span>
+                <span className="text-base font-black text-slate-900">{shcPrescription.ureaBags45Kg} {isHindi ? 'बोरी' : 'bags'}</span>
+                <span className="text-[11px] text-emerald-700 font-semibold block">{shcPrescription.totalUreaKg} kg total</span>
+              </div>
+              <div className="p-3 rounded-xl bg-white border border-emerald-200">
+                <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                  {isHindi ? 'DAP (50kg बोरी)' : 'DAP (50kg bags)'}
+                </span>
+                <span className="text-base font-black text-slate-900">{shcPrescription.dapBags50Kg} {isHindi ? 'बोरी' : 'bags'}</span>
+                <span className="text-[11px] text-emerald-700 font-semibold block">{shcPrescription.totalDapKg} kg total</span>
+              </div>
+              <div className="p-3 rounded-xl bg-white border border-emerald-200">
+                <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                  {isHindi ? 'MOP (50kg बोरी)' : 'MOP (50kg bags)'}
+                </span>
+                <span className="text-base font-black text-slate-900">{shcPrescription.mopBags50Kg} {isHindi ? 'बोरी' : 'bags'}</span>
+                <span className="text-[11px] text-emerald-700 font-semibold block">{shcPrescription.totalMopKg} kg total</span>
+              </div>
+              <div className="p-3 rounded-xl bg-white border border-amber-200">
+                <span className="text-[10px] font-bold uppercase text-slate-400 block">
+                  {isHindi ? 'जिंक सल्फेट + गोबर खाद' : 'Zinc + Organic FYM'}
+                </span>
+                <span className="text-base font-black text-slate-900">{shcPrescription.totalZincKg} kg Zn</span>
+                <span className="text-[11px] text-amber-700 font-semibold block">+ {shcPrescription.totalFymTonnes} t FYM/Compost</span>
+              </div>
+            </div>
+
+            {shcPrescription.amendment && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-900 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <strong className="font-extrabold">{shcPrescription.amendment.product}:</strong>{' '}
+                  <span>{shcPrescription.amendment.note}</span>
+                </div>
+                <span className="px-2.5 py-1 rounded-lg bg-white border border-rose-200 font-black whitespace-nowrap">
+                  {shcPrescription.amendment.bags50Kg} {isHindi ? 'बोरी' : 'bags'} ({shcPrescription.amendment.totalKg} kg)
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Sowing Window, Harvest Window, Total Commercial Bag Summary */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-1">
@@ -575,10 +908,14 @@ const PredictionResultPage = () => {
               <span>{isHindi ? 'अनुमानित खाद बोरी (Bags)' : 'Approx. Commercial Bags'}</span>
             </div>
             <p className="text-sm font-extrabold text-slate-900">
-              {advisory.ureaBags45Kg} {isHindi ? 'यूरिया' : 'Urea'} • {advisory.dapBags50Kg} DAP • {advisory.mopBags50Kg} MOP
+              {activeAdvisoryData.ureaBags45Kg} {isHindi ? 'यूरिया' : 'Urea'} • {activeAdvisoryData.dapBags50Kg} DAP • {activeAdvisoryData.mopBags50Kg} MOP
             </p>
             <p className="text-[11px] text-slate-600">
-              {isHindi ? `कुल ${advisory.totalFertilizerKg} kg (${advisory.fertPerHa} kg/हे.)` : `From ${advisory.totalFertilizerKg} kg total (${advisory.fertPerHa} kg/ha)`}
+              {advisoryMode === 'soil_card'
+                ? (isHindi
+                    ? `लक्ष्य NPK/हे.: ${shcPrescription.targetPerHa.n}:${shcPrescription.targetPerHa.p2o5}:${shcPrescription.targetPerHa.k2o} kg`
+                    : `Target N:P:K/ha = ${shcPrescription.targetPerHa.n}:${shcPrescription.targetPerHa.p2o5}:${shcPrescription.targetPerHa.k2o} kg`)
+                : (isHindi ? `कुल ${advisory.totalFertilizerKg} kg (${advisory.fertPerHa} kg/हे.)` : `From ${advisory.totalFertilizerKg} kg total (${advisory.fertPerHa} kg/ha)`)}
             </p>
           </div>
 
@@ -613,7 +950,7 @@ const PredictionResultPage = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {advisory.splitStages.map((stage) => (
+                {activeAdvisoryData.splitStages.map((stage) => (
                   <tr key={stage.id} className="hover:bg-slate-50/70">
                     <td className="px-4 py-3">
                       <div className="font-bold text-slate-900">{stage.phase}</div>
@@ -833,6 +1170,19 @@ const PredictionResultPage = () => {
           >
             <Sparkles className="w-4 h-4 mr-1 text-teal-600" />
             <span>{isHindi ? 'व्हाट-इफ़ सिम्युलेटर' : 'Simulate Climate Shocks'}</span>
+          </Link>
+          <Link
+            to="/crop-doctor"
+            state={{
+              crop: inputs.crop,
+              state: inputs.state,
+              season: inputs.season,
+              area: inputs.area_hectares || inputs.area
+            }}
+            className="flex-1 sm:flex-initial px-5 py-3 bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold text-sm rounded-xl border border-rose-200 transition-colors text-center flex items-center justify-center space-x-1"
+          >
+            <Stethoscope className="w-4 h-4 mr-1 text-rose-600" />
+            <span>{isHindi ? 'फसल डॉक्टर' : 'Crop Doctor'}</span>
           </Link>
           <Link
             to="/history"

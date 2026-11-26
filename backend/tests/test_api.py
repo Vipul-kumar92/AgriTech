@@ -411,6 +411,59 @@ def test_admin_feedback_inbox_and_user_role_toggle():
         assert revert_res.json()["role"] == "FARMER"
 
 
+def test_crop_doctor_catalog_and_diagnosis():
+    """Verify Crop Doctor catalog and differential diagnosis linked with 3-day spray window."""
+    with TestClient(app) as tc:
+        cat_res = tc.get("/api/crop-doctor/catalog")
+        assert cat_res.status_code == 200
+        catalog = cat_res.json()
+        assert len(catalog["symptoms"]) >= 8
+
+        diag_res = tc.post("/api/crop-doctor/diagnose", json={
+            "crop": "Rice",
+            "state": "Punjab",
+            "season": "Kharif",
+            "symptoms": ["brown_leaf_spots", "interveinal_chlorosis"],
+            "severity": "moderate",
+            "growth_stage": "vegetative",
+            "area_ha": 4.0
+        })
+        assert diag_res.status_code == 200
+        data = diag_res.json()
+        assert data["crop"] == "Rice"
+        assert data["area_hectares"] == 4.0
+        assert "Blast" in data["primary_diagnosis"]["condition_en"]
+        assert len(data["diagnoses"]) == 2
+        assert data["diagnoses"][0]["organic_control"]["total_quantity"] > 0
+        assert data["diagnoses"][0]["chemical_control"]["water_volume_liters"] == 1800
+        assert data["spray_window"]["verdict"] in ["OPTIMAL", "CAUTION", "DELAY"]
+
+
+def test_mandi_comparator_pmfby_insurance_and_kcc():
+    """Verify MSP vs Local Mandi recalculation, PMFBY premium rules, and KCC loan estimation."""
+    with TestClient(app) as tc:
+        # 1. Rabi Wheat on MSP (1.5% PMFBY)
+        rabi_res = tc.get("/api/economics/msp?crop=Wheat&area=4&predicted_yield=4.0&fertilizer_kg=500&pesticide_kg=10&season=Rabi")
+        assert rabi_res.status_code == 200
+        rabi = rabi_res.json()
+        assert rabi["price_mode"] == "MSP"
+        assert rabi["pmfby_insurance"]["farmer_premium_pct"] == 1.5
+        assert rabi["pmfby_insurance"]["sum_insured_inr"] == 272000.0
+        assert rabi["pmfby_insurance"]["farmer_premium_inr"] == 4080.0
+        assert rabi["kcc_eligibility"]["eligible_limit_inr"] == 299200.0
+
+        # 2. Local Mandi rate comparison + Commercial 5% PMFBY (Sugarcane)
+        mandi_res = tc.get("/api/economics/msp?crop=Sugarcane&area=2&predicted_yield=60.0&mandi_rate=400&season=Whole%20Year")
+        assert mandi_res.status_code == 200
+        mandi = mandi_res.json()
+        assert mandi["price_mode"] == "LOCAL_MANDI"
+        assert mandi["applied_rate_per_quintal_inr"] == 400.0
+        assert mandi["mandi_vs_msp_diff_inr"] > 0
+        assert mandi["pmfby_insurance"]["farmer_premium_pct"] == 5.0
+
+
+
+
 
 
 
