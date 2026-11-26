@@ -59,7 +59,7 @@ export const translations = {
     landing_cta_btn2: 'View Model Comparison',
 
     // Dashboard Banner
-    dashboard_title: 'AgriTech Workspace Dashboard',
+    dashboard_title: 'KrishiPulse.AI Workspace',
     welcome_back: 'Welcome back',
     dashboard_subtitle: 'Real-time predictive agriculture insights & empirical farm intelligence.',
     new_prediction: 'New Prediction',
@@ -255,7 +255,7 @@ export const translations = {
     landing_cta_btn2: 'मॉडल तुलना देखें',
 
     // Dashboard Banner
-    dashboard_title: 'कृषि कार्यक्षेत्र डैशबोर्ड',
+    dashboard_title: 'KrishiPulse.AI कार्यक्षेत्र',
     welcome_back: 'स्वागत है',
     dashboard_subtitle: 'वास्तविक समय कृषि उपज पूर्वानुमान, मृदा विश्लेषण एवं आधुनिक कृषि अंतर्दृष्टि।',
     new_prediction: 'नया पूर्वानुमान करें',

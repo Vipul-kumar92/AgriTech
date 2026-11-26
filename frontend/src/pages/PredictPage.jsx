@@ -44,12 +44,12 @@ const PredictPage = () => {
   // Form State
   const [formData, setFormData] = useState({
     crop: location.state?.presetCrop || 'Rice',
-    season: 'Kharif',
+    season: location.state?.presetSeason || 'Kharif',
     state: location.state?.presetState || 'Punjab',
-    area: 50.0,
-    annual_rainfall: 1100.0,
-    fertilizer: 7500.0,
-    pesticide: 175.0,
+    area: location.state?.presetArea ?? 50.0,
+    annual_rainfall: location.state?.presetRainfall ?? 1100.0,
+    fertilizer: location.state?.presetFertilizer ?? 7500.0,
+    pesticide: location.state?.presetPesticide ?? 175.0,
     crop_year: 2024
   });
 
@@ -61,7 +61,7 @@ const PredictPage = () => {
   const recognitionRef = useRef(null);
 
   // Fetch live meteorological parameters for a state
-  const fetchLiveWeather = async (targetState) => {
+  const fetchLiveWeather = async (targetState, preservePresetRainfall = false) => {
     const stateName = targetState || formData.state;
     if (!stateName) return;
 
@@ -70,7 +70,7 @@ const PredictPage = () => {
     try {
       const res = await api.get('/weather/live', { params: { state: stateName } });
       setLiveWeather(res.data);
-      if (res.data.annual_rainfall_benchmark_mm) {
+      if (res.data.annual_rainfall_benchmark_mm && !preservePresetRainfall) {
         setFormData((prev) => ({
           ...prev,
           annual_rainfall: res.data.annual_rainfall_benchmark_mm
@@ -97,7 +97,7 @@ const PredictPage = () => {
 
         setCategories({ crops, states, seasons });
 
-        // Prepopulate based on location state (e.g. from /map) or defaults
+        // Prepopulate based on location state (e.g. from /map or Dashboard voice) or defaults
         const defaultCrop = location.state?.presetCrop && crops.includes(location.state.presetCrop)
           ? location.state.presetCrop
           : crops.includes('Rice') ? 'Rice' : crops[0] || 'Rice';
@@ -106,15 +106,19 @@ const PredictPage = () => {
           ? location.state.presetState
           : states.includes('Punjab') ? 'Punjab' : states[0] || 'Punjab';
 
+        const defaultSeason = location.state?.presetSeason && seasons.includes(location.state.presetSeason)
+          ? location.state.presetSeason
+          : seasons.includes('Kharif') ? 'Kharif' : seasons[0] || 'Kharif';
+
         setFormData((prev) => ({
           ...prev,
           crop: defaultCrop,
           state: defaultState,
-          season: seasons.includes('Kharif') ? 'Kharif' : seasons[0] || 'Kharif'
+          season: defaultSeason
         }));
 
-        // Automatically fetch live climate for initial state
-        fetchLiveWeather(defaultState);
+        // Automatically fetch live climate for initial state (preserve spoken rainfall if provided)
+        fetchLiveWeather(defaultState, Boolean(location.state?.presetRainfall));
       } catch (err) {
         console.error('Failed to load dataset categories:', err);
       } finally {

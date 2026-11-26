@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import api from '../services/api';
 import { StatCard, LoadingSpinner } from '../components/common/StatCard';
+import { parseAgriVoiceTranscript } from '../utils/voiceParser';
 import {
   Sprout,
   BarChart3,
@@ -26,7 +27,9 @@ import {
   RefreshCw,
   MapPin,
   Wind,
-  Mic
+  Mic,
+  MicOff,
+  X
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -97,10 +100,12 @@ const getDynamicAdvisory = (weather, isHindi) => {
 
 const DashboardPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { t, isHindi, translateCrop, translateSeason, translateState } = useLanguage();
   const [analytics, setAnalytics] = useState(null);
   const [recentPredictions, setRecentPredictions] = useState([]);
   const [statesList, setStatesList] = useState(DEFAULT_STATES);
+  const [datasetCategories, setDatasetCategories] = useState({ crops: [], states: DEFAULT_STATES, seasons: [] });
   const [selectedState, setSelectedState] = useState(
     () => localStorage.getItem('agritech_weather_state') || 'Punjab'
   );
@@ -108,6 +113,109 @@ const DashboardPage = () => {
   const [weatherLoading, setWeatherLoading] = useState(false);
   const [weatherError, setWeatherError] = useState('');
   const [loading, setLoading] = useState(true);
+
+  // In-place Dashboard Voice Assistant state
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [voiceStatus, setVoiceStatus] = useState('');
+  const [voiceParsed, setVoiceParsed] = useState(null);
+  const [voicePredicting, setVoicePredicting] = useState(false);
+  const recognitionRef = useRef(null);
+
+  const handleDashboardVoice = () => {
+    setVoiceOpen(true);
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setVoiceStatus(
+        isHindi
+          ? 'इस ब्राउज़र में वॉयस इनपुट समर्थित नहीं है (Chrome या Edge का उपयोग करें)।'
+          : 'Voice input is not supported in this browser (try Chrome or Edge).'
+      );
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+    recognition.lang = isHindi ? 'hi-IN' : 'en-IN';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    setIsListening(true);
+    setVoiceParsed(null);
+    setVoiceStatus(
+      isHindi
+        ? 'सुन रहा हूँ... उदाहरण बोलें: "50 हेक्टेयर चावल पंजाब खरीफ"'
+        : 'Listening... try saying: "50 hectare Rice Punjab Kharif 1100 mm"'
+    );
+
+    recognition.onresult = (event) => {
+      const transcript = event.results?.[0]?.[0]?.transcript || '';
+      setVoiceTranscript(transcript);
+      const { updates, matchedFields } = parseAgriVoiceTranscript(transcript, datasetCategories);
+      if (Object.keys(updates).length > 0) {
+        setVoiceParsed(updates);
+        if (updates.state && statesList.includes(updates.state)) {
+          setSelectedState(updates.state);
+        }
+        setVoiceStatus(
+          isHindi
+            ? `पहचाना गया: ${matchedFields.join(' • ')}`
+            : `Detected: ${matchedFields.join(' • ')}`
+        );
+      } else {
+        setVoiceStatus(
+          isHindi
+            ? 'कोई फसल/राज्य नहीं मिला — उदाहरण: "50 hectare Rice Punjab Kharif"'
+            : 'No crop/state matched — try e.g. "50 hectare Rice Punjab Kharif"'
+        );
+      }
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+      setVoiceStatus(isHindi ? 'माइक्रोफ़ोन त्रुटि या अनुमति अस्वीकृत' : 'Microphone error or permission denied');
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognition.start();
+  };
+
+  const handleVoiceInstantPredict = async () => {
+    if (!voiceParsed) return;
+    setVoicePredicting(true);
+    try {
+      const targetState = voiceParsed.state || selectedState || 'Punjab';
+      const rainFallback = Number(liveWeather?.annual_rainfall_benchmark_mm ?? 1100);
+      const areaVal = Number(voiceParsed.area ?? 50);
+      const payload = {
+        crop: voiceParsed.crop || 'Rice',
+        state: targetState,
+        season: voiceParsed.season || 'Kharif',
+        area: areaVal,
+        annual_rainfall: Number(voiceParsed.annual_rainfall ?? rainFallback),
+        fertilizer: Number(voiceParsed.fertilizer ?? Math.round(areaVal * 150)),
+        pesticide: Number(voiceParsed.pesticide ?? Math.round(areaVal * 3.5)),
+        crop_year: 2024
+      };
+      const res = await api.post('/predict', payload);
+      navigate(`/predict/result/${res.data.prediction_id}`, { state: { prediction: res.data } });
+    } catch (err) {
+      setVoiceStatus(err.response?.data?.detail || (isHindi ? 'पूर्वानुमान विफल रहा' : 'Instant prediction failed'));
+    } finally {
+      setVoicePredicting(false);
+    }
+  };
 
   const fetchLiveWeather = async (targetState) => {
     const stateToQuery = targetState || selectedState;
@@ -137,6 +245,11 @@ const DashboardPage = () => {
         setRecentPredictions(predsRes.data.items || []);
         if (statsRes?.data?.states?.length) {
           setStatesList(statsRes.data.states);
+          setDatasetCategories({
+            crops: statsRes.data.crops || [],
+            states: statsRes.data.states || DEFAULT_STATES,
+            seasons: statsRes.data.seasons || []
+          });
         }
       } catch (err) {
         console.error('Failed to load dashboard data:', err);
@@ -199,99 +312,200 @@ const DashboardPage = () => {
         <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-teal-400/15 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Content Container */}
-        <div className="relative z-10 p-6 sm:p-7 md:p-9 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-          <div className="space-y-3 max-w-2xl">
-            {/* Top Badges */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-emerald-500/25 border border-emerald-300/40 text-emerald-100 text-xs font-semibold backdrop-blur-md">
-                <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
-                <span>{t('live_cycle', 'Agro-Climatic Cycle: Active')}</span>
-              </span>
-              <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-amber-500/20 border border-amber-300/35 text-amber-200 text-[11px] font-semibold backdrop-blur-md">
-                <span>🌱 {t('ai_precision_badge', '100% Empirical Machine Learning')}</span>
-              </span>
-              <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-white/15 border border-white/25 text-white/90 text-[11px] font-semibold backdrop-blur-md">
-                <CheckCircle2 className="w-3 h-3 text-emerald-300" />
-                <span>RF v1.0 • R² {kpi.model_r2 || '0.8147'}</span>
-              </span>
+        {/* Content Container: Clean Unified Hero Layout */}
+        <div className="relative z-10 p-6 sm:p-8 md:p-9 space-y-4">
+          {/* Header Row: Title + Subtle Farmer Pill */}
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-2 max-w-3xl">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-tight drop-shadow-sm">
+                {t('dashboard_title', 'KrishiPulse.AI Workspace')}
+              </h1>
+
+              <p className="text-xs sm:text-base text-emerald-50/90 font-normal leading-relaxed">
+                {recentPredictions.length === 0
+                  ? (isHindi ? 'स्वागत है' : 'Welcome')
+                  : t('welcome_back', 'Welcome back')}
+                ,{' '}
+                <span className="font-bold text-amber-300 bg-amber-400/15 px-2.5 py-0.5 rounded-lg border border-amber-300/30">
+                  {user?.name || (isHindi ? 'किसान' : 'Farmer')}
+                </span>
+                . {t('dashboard_subtitle', 'Real-time predictive agriculture insights & empirical farm intelligence.')}
+              </p>
             </div>
 
-            {/* Title & Greeting */}
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-tight drop-shadow-sm">
-              {t('dashboard_title', 'AgriTech Workspace Dashboard')}
-            </h1>
-
-            <p className="text-xs sm:text-base text-emerald-50/90 font-normal leading-relaxed">
-              {recentPredictions.length === 0
-                ? (isHindi ? 'स्वागत है' : 'Welcome')
-                : t('welcome_back', 'Welcome back')}
-              ,{' '}
-              <span className="font-bold text-amber-300 bg-amber-400/15 px-2.5 py-0.5 rounded-lg border border-amber-300/30">
-                {user?.name || (isHindi ? 'किसान' : 'Farmer')}
-              </span>
-              . {t('dashboard_subtitle', 'Real-time predictive agriculture insights & empirical farm intelligence.')}
-            </p>
-          </div>
-
-          {/* Right Column: Farmer Profile Card + Primary Actions */}
-          <div className="flex flex-col sm:flex-row lg:flex-col items-stretch sm:items-center lg:items-end gap-3 w-full lg:w-auto">
             <Link
               to="/profile"
-              className="flex items-center space-x-3 px-3.5 py-2 rounded-2xl bg-white/15 hover:bg-white/20 backdrop-blur-md border border-white/25 shadow-lg transition-all"
+              className="inline-flex items-center space-x-2.5 px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-md border border-white/25 transition-colors flex-shrink-0"
             >
               {user?.picture ? (
                 <img
                   src={user.picture}
                   alt={user.name || 'Farmer'}
-                  className="w-8 h-8 rounded-full border border-emerald-300/60 object-cover bg-white"
+                  className="w-6 h-6 rounded-full border border-emerald-300/70 object-cover bg-white"
                 />
               ) : (
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-emerald-950 font-black text-xs flex items-center justify-center shadow-inner">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-emerald-950 font-black text-[10px] flex items-center justify-center">
                   {(user?.name || 'F').charAt(0).toUpperCase()}
                 </div>
               )}
-              <div className="text-left leading-tight">
-                <p className="text-xs font-bold text-white truncate max-w-[150px]">
-                  {user?.name || (isHindi ? 'किसान' : 'Farmer')}
-                </p>
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200">
-                  {user?.role || 'FARMER'} • {isHindi ? 'सत्यापित' : 'Verified'}
-                </p>
-              </div>
+              <span className="text-xs font-bold text-white max-w-[140px] truncate">
+                {user?.name || (isHindi ? 'किसान' : 'Farmer')}
+              </span>
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200 border-l border-white/20 pl-2">
+                {user?.role || 'FARMER'}
+              </span>
+            </Link>
+          </div>
+
+          {/* Unified Single-Row Action Bar */}
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <Link
+              to="/predict"
+              className="inline-flex items-center justify-center px-5 py-2.5 sm:py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-emerald-950/30 transition-all duration-200 whitespace-nowrap"
+            >
+              <Sprout className="w-4 h-4 mr-2" />
+              {t('new_prediction', 'New Prediction')}
             </Link>
 
-            {/* Action Buttons */}
-            <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
-              <Link
-                to="/predict"
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center px-5 py-2.5 sm:py-3 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white font-bold text-xs sm:text-sm rounded-2xl shadow-lg shadow-emerald-950/30 hover:scale-105 active:scale-95 transition-all duration-200"
-              >
-                <Sprout className="w-4 h-4 mr-2" />
-                {t('new_prediction', 'New Prediction')}
-              </Link>
+            <button
+              type="button"
+              onClick={handleDashboardVoice}
+              className={`inline-flex items-center justify-center px-4 sm:px-5 py-2.5 sm:py-3 font-bold text-xs sm:text-sm rounded-2xl border backdrop-blur-md transition-all duration-200 whitespace-nowrap ${
+                isListening
+                  ? 'bg-red-500/85 hover:bg-red-500 text-white border-red-300 shadow-lg'
+                  : 'bg-amber-400/20 hover:bg-amber-400/30 text-amber-100 border-amber-300/40'
+              }`}
+              title={isHindi ? 'बोलकर उपज का अनुमान लगाएं' : 'Predict by speaking parameters'}
+            >
+              {isListening ? <MicOff className="w-4 h-4 mr-2" /> : <Mic className="w-4 h-4 mr-2 text-amber-300" />}
+              <span>{isListening ? (isHindi ? 'रोकें' : 'Stop') : (isHindi ? 'बोलकर पूछें' : 'Voice Predict')}</span>
+            </button>
 
-              <Link
-                to="/predict"
-                state={{ startVoice: true }}
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center px-4 py-2.5 sm:py-3 bg-amber-400/20 hover:bg-amber-400/30 text-amber-100 font-bold text-xs sm:text-sm rounded-2xl border border-amber-300/40 backdrop-blur-md hover:scale-105 active:scale-95 transition-all duration-200"
-                title={isHindi ? 'बोलकर उपज का अनुमान लगाएं' : 'Predict by speaking parameters'}
-              >
-                <Mic className="w-4 h-4 mr-1.5 text-amber-300" />
-                {isHindi ? 'बोलकर पूछें' : 'Voice Predict'}
-              </Link>
-
-              <Link
-                to="/map"
-                className="flex-1 sm:flex-initial inline-flex items-center justify-center px-4 py-2.5 sm:py-3 bg-white/15 hover:bg-white/25 text-white font-semibold text-xs sm:text-sm rounded-2xl border border-white/30 backdrop-blur-md hover:scale-105 active:scale-95 transition-all duration-200"
-              >
-                <Map className="w-4 h-4 mr-2 text-emerald-300" />
-                {t('yield_map', 'Yield Map')}
-              </Link>
-            </div>
+            <Link
+              to="/map"
+              className="inline-flex items-center justify-center px-4 sm:px-5 py-2.5 sm:py-3 bg-white/15 hover:bg-white/25 text-white font-semibold text-xs sm:text-sm rounded-2xl border border-white/25 backdrop-blur-md transition-all duration-200 whitespace-nowrap"
+            >
+              <Map className="w-4 h-4 mr-2 text-emerald-300" />
+              <span>{t('yield_map', 'Yield Map')}</span>
+            </Link>
           </div>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* 1B. LIVE VOICE PREDICT ASSISTANT PANEL (OPENS ON VOICE CLICK)             */}
+      {/* ========================================================================= */}
+      {voiceOpen && (
+        <div className="rounded-2xl glass-card-agri p-4 sm:p-5 border-2 border-amber-300/80 shadow-lg space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center space-x-2.5">
+              <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white flex-shrink-0 ${
+                isListening ? 'bg-red-600 animate-pulse' : 'bg-gradient-to-br from-amber-500 to-orange-500'
+              }`}>
+                {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">
+                  {isHindi ? 'वॉयस-आधारित स्मार्ट पूर्वानुमान' : 'KrishiPulse Voice Assistant'}
+                </h3>
+                <p className="text-xs text-slate-600">{voiceStatus}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={handleDashboardVoice}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                  isListening
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                }`}
+              >
+                {isListening ? (isHindi ? 'रोकें' : 'Stop') : (isHindi ? 'फिर से बोलें' : 'Speak Again')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (recognitionRef.current) recognitionRef.current.stop();
+                  setIsListening(false);
+                  setVoiceOpen(false);
+                }}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                aria-label="Close voice panel"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {voiceTranscript && (
+            <div className="px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-700 italic">
+              “{voiceTranscript}”
+            </div>
+          )}
+
+          {voiceParsed && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-amber-100">
+              <div className="flex flex-wrap gap-1.5 text-[11px] font-bold">
+                {voiceParsed.crop && (
+                  <span className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-800">
+                    🌾 {translateCrop(voiceParsed.crop)}
+                  </span>
+                )}
+                {voiceParsed.state && (
+                  <span className="px-2.5 py-1 rounded-lg bg-teal-100 text-teal-800">
+                    📍 {translateState(voiceParsed.state)}
+                  </span>
+                )}
+                {voiceParsed.season && (
+                  <span className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-800">
+                    ☀️ {translateSeason(voiceParsed.season)}
+                  </span>
+                )}
+                {voiceParsed.area && (
+                  <span className="px-2.5 py-1 rounded-lg bg-sky-100 text-sky-800">
+                    📐 {voiceParsed.area} ha
+                  </span>
+                )}
+                {voiceParsed.annual_rainfall && (
+                  <span className="px-2.5 py-1 rounded-lg bg-blue-100 text-blue-800">
+                    🌧️ {voiceParsed.annual_rainfall} mm
+                  </span>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  to="/predict"
+                  state={{
+                    presetCrop: voiceParsed.crop,
+                    presetState: voiceParsed.state,
+                    presetSeason: voiceParsed.season,
+                    presetArea: voiceParsed.area,
+                    presetRainfall: voiceParsed.annual_rainfall,
+                    presetFertilizer: voiceParsed.fertilizer,
+                    presetPesticide: voiceParsed.pesticide,
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 text-xs font-bold transition-colors"
+                >
+                  {isHindi ? 'फ़ॉर्म में खोलें' : 'Edit in Lab'}
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleVoiceInstantPredict}
+                  disabled={voicePredicting}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold shadow-md disabled:opacity-60 transition-all"
+                >
+                  {voicePredicting
+                    ? (isHindi ? 'गणना हो रही है...' : 'Predicting...')
+                    : (isHindi ? 'तुरंत अनुमान देखें →' : 'Instant Predict →')}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* 2. AGRO-CLIMATIC WEATHER & FARM ADVISORY WIDGET (TRANSLUCENT GLASS)       */}
@@ -474,7 +688,9 @@ const DashboardPage = () => {
           <h2 className="text-base font-bold text-slate-900">
             {t('quick_actions_title', 'Farm Intelligence & Analytical Suites')}
           </h2>
-          <span className="text-xs text-slate-500">AgriTech Modules</span>
+          <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200/70 px-2.5 py-1 rounded-full">
+            KrishiPulse Modules
+          </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -650,7 +866,14 @@ const DashboardPage = () => {
                     boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)'
                   }}
                 />
-                <Bar dataKey="average_yield" fill="#f59e0b" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="average_yield" radius={[8, 8, 0, 0]}>
+                  {seasonalData.map((_, index) => (
+                    <Cell
+                      key={`season-cell-${index}`}
+                      fill={['#f59e0b', '#10b981', '#0ea5e9', '#14b8a6', '#f97316', '#8b5cf6'][index % 6]}
+                    />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -683,22 +906,22 @@ const DashboardPage = () => {
           </Link>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-600">
-            <thead className="bg-emerald-50/60 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-emerald-100">
-              <tr>
-                <th className="px-6 py-3.5">{t('col_crop', 'Crop')}</th>
-                <th className="px-6 py-3.5">{t('col_state', 'State')}</th>
-                <th className="px-6 py-3.5">{t('col_season', 'Season')}</th>
-                <th className="px-6 py-3.5">{t('col_area', 'Cultivated Area')}</th>
-                <th className="px-6 py-3.5">{t('col_pred_yield', 'Predicted Yield')}</th>
-                <th className="px-6 py-3.5">{t('col_total_prod', 'Total Production')}</th>
-                <th className="px-6 py-3.5 text-right">{t('col_action', 'Action')}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {recentPredictions.length > 0 ? (
-                recentPredictions.map((pred) => (
+        {recentPredictions.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm text-slate-600">
+              <thead className="bg-emerald-50/60 text-[11px] font-bold uppercase tracking-wider text-slate-500 border-b border-emerald-100">
+                <tr>
+                  <th className="px-6 py-3.5">{t('col_crop', 'Crop')}</th>
+                  <th className="px-6 py-3.5">{t('col_state', 'State')}</th>
+                  <th className="px-6 py-3.5">{t('col_season', 'Season')}</th>
+                  <th className="px-6 py-3.5">{t('col_area', 'Cultivated Area')}</th>
+                  <th className="px-6 py-3.5">{t('col_pred_yield', 'Predicted Yield')}</th>
+                  <th className="px-6 py-3.5">{t('col_total_prod', 'Total Production')}</th>
+                  <th className="px-6 py-3.5 text-right">{t('col_action', 'Action')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {recentPredictions.map((pred) => (
                   <tr key={pred.id} className="hover:bg-emerald-50/40 transition-colors">
                     <td className="px-6 py-4 font-bold text-slate-900 flex items-center">
                       <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center mr-2.5 flex-shrink-0">
@@ -706,7 +929,7 @@ const DashboardPage = () => {
                       </div>
                       <span>{translateCrop(pred.crop)}</span>
                     </td>
-                    <td className="px-6 py-4 text-slate-700 font-medium">{pred.state}</td>
+                    <td className="px-6 py-4 text-slate-700 font-medium">{translateState(pred.state)}</td>
                     <td className="px-6 py-4 text-slate-600">
                       <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
                         {translateSeason(pred.season)}
@@ -730,54 +953,60 @@ const DashboardPage = () => {
                       </Link>
                     </td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={7} className="px-6 py-10">
-                    <div className="max-w-2xl mx-auto text-center space-y-4">
-                      <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/25">
-                        <Sparkles className="w-7 h-7" />
-                      </div>
-                      <div className="space-y-1">
-                        <h4 className="text-base font-extrabold text-slate-900">
-                          {isHindi ? 'आपका फ़ार्म डैशबोर्ड तैयार है!' : 'Your Smart Farm Workspace is Ready!'}
-                        </h4>
-                        <p className="text-xs sm:text-sm text-slate-500">
-                          {isHindi
-                            ? 'अपना पहला फसल उपज पूर्वानुमान चलाने के लिए नीचे एक त्वरित प्रीसेट चुनें या कस्टम फ़ॉर्म खोलें।'
-                            : 'Start your first ML crop yield prediction using a 1-click regional preset below or open the custom lab.'}
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
-                        <Link
-                          to="/predict"
-                          state={{ presetCrop: 'Rice', presetState: 'Punjab' }}
-                          className="px-4 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition-colors"
-                        >
-                          🌾 {isHindi ? 'पंजाब • चावल (खरीफ)' : 'Punjab • Rice Preset'}
-                        </Link>
-                        <Link
-                          to="/predict"
-                          state={{ presetCrop: 'Wheat', presetState: 'Uttar Pradesh' }}
-                          className="px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold transition-colors"
-                        >
-                          🌿 {isHindi ? 'उत्तर प्रदेश • गेहूं' : 'UP • Wheat Preset'}
-                        </Link>
-                        <Link
-                          to="/predict"
-                          className="inline-flex items-center px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition-all"
-                        >
-                          <Sprout className="w-3.5 h-3.5 mr-1.5" />
-                          {t('run_first_pred', 'Run First Prediction')}
-                        </Link>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="px-6 py-10">
+            <div className="max-w-2xl mx-auto text-center space-y-4">
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                <Sparkles className="w-7 h-7" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-base font-extrabold text-slate-900">
+                  {isHindi ? 'आपका फ़ार्म डैशबोर्ड तैयार है!' : 'Your Smart Farm Workspace is Ready!'}
+                </h4>
+                <p className="text-xs sm:text-sm text-slate-500">
+                  {isHindi
+                    ? 'अपना पहला फसल उपज पूर्वानुमान चलाने के लिए नीचे एक त्वरित प्रीसेट चुनें, बोलकर पूछें, या कस्टम फ़ॉर्म खोलें।'
+                    : 'Start your first ML crop yield prediction with a 1-click regional preset, voice input, or the custom lab.'}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
+                <Link
+                  to="/predict"
+                  state={{ presetCrop: 'Rice', presetState: 'Punjab' }}
+                  className="px-4 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition-colors"
+                >
+                  🌾 {isHindi ? 'पंजाब • चावल (खरीफ)' : 'Punjab • Rice Preset'}
+                </Link>
+                <Link
+                  to="/predict"
+                  state={{ presetCrop: 'Wheat', presetState: 'Uttar Pradesh' }}
+                  className="px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-bold transition-colors"
+                >
+                  🌿 {isHindi ? 'उत्तर प्रदेश • गेहूं' : 'UP • Wheat Preset'}
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleDashboardVoice}
+                  className="inline-flex items-center px-4 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold transition-colors"
+                >
+                  <Mic className="w-3.5 h-3.5 mr-1.5 text-amber-600" />
+                  {isHindi ? 'बोलकर भरें' : 'Voice Quick Predict'}
+                </button>
+                <Link
+                  to="/predict"
+                  className="inline-flex items-center px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 transition-all"
+                >
+                  <Sprout className="w-3.5 h-3.5 mr-1.5" />
+                  {t('run_first_pred', 'Run First Prediction')}
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
