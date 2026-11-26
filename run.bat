@@ -8,6 +8,11 @@ set "PATH=C:\Program Files\nodejs;%PATH%"
 echo 1. Verifying MongoDB Service...
 net start MongoDB >nul 2>&1
 
+if not exist "ml\models\crop_yield_model_v1.0.joblib" (
+    echo Model file not found. Auto-training model from dataset...
+    python train_model.py
+)
+
 echo 2. Starting FastAPI Backend Server on port 8000...
 start "AgriTech Backend (FastAPI)" cmd /k "python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000"
 

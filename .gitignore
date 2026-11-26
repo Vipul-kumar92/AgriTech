@@ -25,3 +25,4 @@ yarn-error.log*
 
 # Large Model / Joblib Backups (keep production v1.0)
 *.log
+*.zip

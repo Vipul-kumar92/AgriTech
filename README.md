@@ -68,9 +68,13 @@ Agricultural Data ➔ Data Cleaning ➔ EDA ➔ Feature Engineering ➔ Multi-Mo
 pip install -r backend/requirements.txt
 pip install -r ml/requirements.txt
 
+# (Optional) Pre-train champion model if not already present
+python train_model.py
+
 # Start FastAPI server (Port 8000)
 python -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
+*Note: If the model file is not found, `run.bat`, `run.ps1`, or the backend server will automatically train and build it from the included cleaned dataset in ~2 seconds.*
 Interactive API documentation will be accessible at: `http://localhost:8000/docs`
 
 ### 3. Frontend Setup

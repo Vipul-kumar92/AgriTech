@@ -37,8 +37,15 @@ class PredictionEngine:
         """Load serialized pipeline and metadata into memory."""
         try:
             if not os.path.exists(settings.MODEL_PATH):
-                logger.error(f"Model file not found at {settings.MODEL_PATH}")
-                return
+                logger.warning(f"Model file not found at {settings.MODEL_PATH}. Attempting automatic quick-train...")
+                train_script = os.path.join(settings.BASE_DIR, "train_model.py")
+                if os.path.exists(train_script):
+                    import subprocess
+                    import sys
+                    subprocess.run([sys.executable, train_script], cwd=settings.BASE_DIR, check=True)
+                else:
+                    logger.error(f"Model file not found at {settings.MODEL_PATH}")
+                    return
             
             logger.info(f"Loading production pipeline from {settings.MODEL_PATH} ...")
             self.pipeline = joblib.load(settings.MODEL_PATH)
